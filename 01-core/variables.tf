@@ -1,15 +1,9 @@
 # ================================================================================
-# SECTION: VPC Naming
+# FILE: variables.tf
 # ================================================================================
 
-# Name assigned to the VPC resource created for this environment.
-variable "vpc_name" {
-  description = "Name for the VPC resource"
+variable "location" {
+  description = "Azure region for all resources. East US has the broadest Azure OpenAI model availability."
   type        = string
-  default     = "clawd-vpc"
-}
-
-variable "ses_email" {
-  description = "Email address to verify in SES for outbound sending (a verification email will be sent here)"
-  type        = string
+  default     = "East US"
 }

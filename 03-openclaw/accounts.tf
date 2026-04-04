@@ -4,13 +4,12 @@
 #
 # Purpose:
 #   Generate a memorable password for the local openclaw Linux user and store
-#   it in AWS Secrets Manager. The EC2 instance reads this secret at first boot
-#   to create and configure the account.
+#   it in Azure Key Vault. The VM reads this secret at first boot via managed
+#   identity to set the account password.
 #
 # Design:
 #   - Password format: <word>-<6-digit-number>
 #   - No credentials exposed via Terraform outputs.
-#   - Secret permitted to be destroyed during teardown.
 #
 # ================================================================================
 
@@ -53,23 +52,15 @@ locals {
 
 
 # ================================================================================
-# SECTION: Secrets Manager
+# SECTION: Key Vault Secret
 # ================================================================================
 
-resource "aws_secretsmanager_secret" "openclaw" {
-  name                    = "openclaw_credentials"
-  description             = "Local openclaw desktop user credentials"
-  recovery_window_in_days = 0
+resource "azurerm_key_vault_secret" "openclaw_credentials" {
+  name         = "openclaw-credentials"
+  key_vault_id = data.azurerm_key_vault.openclaw_vault.id
+  content_type = "application/json"
 
-  lifecycle {
-    prevent_destroy = false
-  }
-}
-
-resource "aws_secretsmanager_secret_version" "openclaw" {
-  secret_id = aws_secretsmanager_secret.openclaw.id
-
-  secret_string = jsonencode({
+  value = jsonencode({
     username = "openclaw"
     password = local.openclaw_password
   })

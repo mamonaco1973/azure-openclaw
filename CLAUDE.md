@@ -1,97 +1,83 @@
-# CLAUDE.md — aws-openclaw
+# CLAUDE.md — azure-openclaw
 
 ## Project Overview
 
-Terraform + Packer project that deploys an EC2 instance running **OpenClaw**
-(an AI coding agent) backed by **LiteLLM proxy** pointed at **AWS Bedrock**.
+Terraform + Packer project that deploys an Azure VM running **OpenClaw**
+(an AI coding agent) backed by **LiteLLM proxy** pointed at **Azure OpenAI**.
 Users RDP into an LXQt desktop and access the OpenClaw web UI at
-`http://localhost:18789` in Chrome. No SSH keys, no open inbound ports —
-RDP uses SSM Session Manager port-forwarding (or direct inbound RDP if SG
-rules are opened).
+`http://localhost:18789` in Chrome. Two Azure OpenAI models are available:
+GPT-4o (primary) and GPT-4o Mini.
 
 ## Architecture
 
 ```
-01-core/          VPC + subnets + NAT gateway
-02-packer/        Packer build: Ubuntu 24.04 → openclaw_ami
-  scripts/        01-packages through 10-services
+01-core/          VNet + subnets + NAT gateway + Key Vault + Azure OpenAI + ACS Email
+02-packer/        Packer build: Ubuntu 24.04 → openclaw_image (azure-arm)
+  scripts/        01-packages through 12-onlyoffice
   files/          litellm.service, openclaw-gateway.service
-03-openclaw/      EC2 instance + IAM role + security group + secrets
+03-openclaw/      Azure VM + managed identity + RBAC + Key Vault secrets
   scripts/
-    userdata.sh   Boot: set password from secret, write litellm config,
-                  start systemd services
+    custom_data.sh  Boot: retrieve password from Key Vault, write litellm config,
+                    configure email, start systemd services
 ```
 
 ### Deployment Order
 
-1. `01-core` — VPC, subnets, NAT gateway
-2. `02-packer` — Packer builds `openclaw_ami`
-3. `03-openclaw` — EC2 from `openclaw_ami`, secrets, IAM
+1. `01-core` — VNet, Key Vault, Azure OpenAI (gpt-4o + gpt-4o-mini), ACS Email
+2. `02-packer` — Packer builds `openclaw_image` (azure-arm)
+3. `03-openclaw` — Azure VM from `openclaw_image`, managed identity, RBAC
 
 ### Key Resources
 
 | Resource | Value |
 |---|---|
-| Region | `us-east-1` |
-| VPC / CIDR | `clawd-vpc` / `10.0.0.0/23` |
-| EC2 instance tag | `openclaw-host` |
-| Instance type | `t3.xlarge` (variable) |
+| Region | `East US` |
+| VNet / CIDR | `openclaw-vnet` / `10.0.0.0/23` |
+| VM name | `openclaw-host` |
+| VM size | `Standard_D4s_v3` (variable) |
 | LiteLLM port | `4000` |
 | LiteLLM master key | `sk-openclaw` |
 | OpenClaw gateway port | `18789` (loopback only) |
-| Bedrock model | Dynamically resolved from `list-foundation-models` |
+| Azure OpenAI models | `gpt-4o`, `gpt-4o-mini` |
 | Linux user | `openclaw` (sudo, NOPASSWD) |
-| Password source | AWS Secrets Manager `openclaw_credentials` |
+| Password source | Azure Key Vault secret `openclaw-credentials` |
 
 ## Common Commands
 
 ```bash
-# Validate environment (checks aws, terraform, jq, packer in PATH + AWS auth)
+# Validate environment (checks az, terraform, jq, packer + ARM_* vars + Azure login)
 ./check_env.sh
 
 # Deploy everything (01-core → 02-packer → 03-openclaw → validate)
 ./apply.sh
 
-# Tear down (03-openclaw → deregister AMI → 01-core)
+# Tear down (03-openclaw → delete images → 01-core)
 ./destroy.sh
 
 # Validate post-deploy
 ./validate.sh
 ```
 
-### Connecting to the Instance
-
-```bash
-# Get instance ID
-INSTANCE_ID=$(cd 03-openclaw && terraform output -raw instance_id)
-
-# SSM shell session
-aws ssm start-session --target "$INSTANCE_ID" --region us-east-1
-
-# RDP port-forward (then connect to localhost:13389)
-aws ssm start-session \
-  --target "$INSTANCE_ID" \
-  --document-name AWS-StartPortForwardingSession \
-  --parameters '{"portNumber":["3389"],"localPortNumber":["13389"]}' \
-  --region us-east-1
-```
-
 ### Getting the openclaw User Password
 
 ```bash
-aws secretsmanager get-secret-value \
-  --secret-id openclaw_credentials \
-  --query SecretString \
-  --output text | jq -r '.password'
+VAULT=$(az keyvault list \
+  --resource-group openclaw-network-rg \
+  --query "[0].name" --output tsv)
+
+az keyvault secret show \
+  --vault-name "$VAULT" \
+  --name openclaw-credentials \
+  --query value --output tsv | jq -r '.password'
 ```
 
 ## What Packer (02-packer) Does
 
-Builds `openclaw_ami` from Ubuntu 24.04 (fully self-contained):
+Builds `openclaw_image` from Ubuntu 24.04 (azure-arm, fully self-contained):
 
 | Script | What it installs |
 |---|---|
-| `01-packages.sh` | Removes snap, installs SSM agent DEB, base packages |
+| `01-packages.sh` | Removes snap, installs base packages |
 | `02-desktop.sh` | LXQt desktop environment |
 | `03-xrdp.sh` | XRDP + LXQt session config |
 | `04-chrome.sh` | Google Chrome Stable |
@@ -99,49 +85,48 @@ Builds `openclaw_ami` from Ubuntu 24.04 (fully self-contained):
 | `06-user.sh` | `openclaw` Linux user with passwordless sudo |
 | `07-node.sh` | Node.js 22, openclaw at `/usr/local/bin/openclaw` |
 | `08-litellm.sh` | Python venv at `/opt/litellm-venv`, `litellm[proxy]` |
-| `09-openclaw-init.sh` | Runs gateway briefly to stamp config metadata; configures litellm provider |
+| `09-openclaw-init.sh` | Runs gateway briefly to stamp config metadata; configures Azure OpenAI provider |
 | `10-services.sh` | Installs and enables `litellm.service` + `openclaw-gateway.service` |
+| `11-python-tools.sh` | Python packages + system utilities + azure-communication-email |
+| `12-onlyoffice.sh` | OnlyOffice Desktop Editors |
 
-## What userdata.sh Does
+## What custom_data.sh Does
 
-Runs at first boot on the `openclaw_ami` EC2 instance:
+Runs at first boot on the Azure VM:
 
-1. Reads `openclaw_credentials` from Secrets Manager via instance IAM role
-2. Sets the `openclaw` Linux user password (`chpasswd`)
-3. Writes `/opt/openclaw/litellm-config.yaml` with the actual Bedrock model ID
-4. Starts `litellm.service` and `openclaw-gateway.service`
+1. Logs in with managed identity (`az login --identity`)
+2. Reads `openclaw-credentials` from Key Vault → sets `openclaw` Linux user password
+3. Reads `openclaw-openai-config` from Key Vault → writes `/opt/openclaw/litellm-config.yaml`
+4. Reads `openclaw-email-config` from Key Vault (optional) → configures `acs-mail` email sender
+5. Starts `litellm.service` and `openclaw-gateway.service`
 
-## Bedrock Model Discovery
+## Azure OpenAI Models
 
-`apply.sh` queries `aws bedrock list-foundation-models` to find the latest
-active versioned Claude Sonnet model and prepends `us.` for cross-region
-inference profiles:
+Two deployments created in `01-core/ai.tf`:
 
-```bash
-BASE_MODEL_ID=$(aws bedrock list-foundation-models \
-  --by-provider anthropic \
-  --query 'modelSummaries[?modelLifecycle.status==`ACTIVE` && contains(modelId, `claude-sonnet`)]' \
-  --output json | jq -r '[.[] | select(.modelId | test("-v[0-9]+:[0-9]+$"))] | [.[].modelId] | sort | last')
-BEDROCK_MODEL_ID="us.${BASE_MODEL_ID}"
-```
+| Model Name | Deployment | Purpose |
+|---|---|---|
+| `gpt-4o` | `gpt-4o` | Primary capable model |
+| `gpt-4o-mini` | `gpt-4o-mini` | Fast / cost-efficient model |
 
-## IAM Permissions
+LiteLLM routes to Azure OpenAI using the API key stored in Key Vault.
 
-The instance role (`openclaw-role`) has:
+## RBAC Permissions
 
-| Policy | Purpose |
-|---|---|
-| `AmazonSSMManagedInstanceCore` | SSM Session Manager access |
-| Inline `openclaw-bedrock` | `bedrock:InvokeModel` + `InvokeModelWithResponseStream` on foundation models and inference profiles |
-| Inline `openclaw-secrets` | `secretsmanager:GetSecretValue` scoped to `openclaw_credentials*` |
+The VM managed identity has:
+
+| Role | Scope | Purpose |
+|---|---|---|
+| Key Vault Secrets User | Key Vault | Read credentials + OpenAI config at boot |
+| Cost Management Reader | Subscription | Azure cost queries |
 
 ## Networking Design
 
-- `vm-subnet-1` / `vm-subnet-2` — private workload subnets, egress via NAT
-- `pub-subnet-1` / `pub-subnet-2` — public subnets (NAT gateway + Packer builder)
-- Security group `openclaw-sg` — port 3389 inbound, all outbound allowed
-- **Packer build uses `pub-subnet-1`** (needs SSH from internet during build)
-- **EC2 host uses `pub-subnet-1`** (direct RDP access)
+- `openclaw-vnet` (10.0.0.0/23) — single VNet
+- `vm-subnet` (10.0.0.0/25) — VM subnet, egress via NAT gateway
+- NSG `openclaw-nsg` — port 3389 inbound, all outbound allowed
+- NAT Gateway — stable egress IP for API calls and package updates
+- Public IP on VM — direct RDP access
 
 ## Password Format
 
@@ -151,4 +136,4 @@ Generated by Terraform in `03-openclaw/accounts.tf`:
 <word>-<6-digit-number>   e.g. "rocket-482910"
 ```
 
-Stored in Secrets Manager as `{"username": "openclaw", "password": "..."}`.
+Stored in Key Vault as `{"username": "openclaw", "password": "..."}`.

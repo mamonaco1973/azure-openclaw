@@ -11,10 +11,13 @@ set -euo pipefail
 # pre-written config with defaults, discarding the litellm provider settings.
 #
 # Flow:
-#   1. Start litellm with a placeholder config so models auth can connect.
+#   1. Start litellm with a placeholder Azure OpenAI config (placeholder creds).
 #   2. Run openclaw gateway in background as openclaw user (stamps config).
-#   3. Configure the litellm model provider via CLI.
+#   3. Configure the litellm model provider via CLI (gpt-4o + gpt-4o-mini).
 #   4. Stop both processes — config is persisted at /home/openclaw/.openclaw.
+#
+# Note: The placeholder config uses dummy Azure OpenAI creds. The real endpoint
+# and API key are written by custom_data.sh at first boot from Key Vault.
 #
 # ================================================================================
 
@@ -22,25 +25,19 @@ echo "NOTE: [openclaw-init] writing placeholder litellm config"
 mkdir -p /opt/openclaw
 cat > /opt/openclaw/litellm-config.yaml <<'LITELLM'
 model_list:
-  - model_name: claude-sonnet
+  - model_name: gpt-4o
     litellm_params:
-      model: bedrock/us.anthropic.claude-sonnet-4-5-20250929-v1:0
-      aws_region_name: us-east-1
+      model: azure/gpt-4o
+      api_base: https://placeholder.openai.azure.com/
+      api_version: "2024-10-21"
+      api_key: sk-placeholder
 
-  - model_name: claude-haiku
+  - model_name: gpt-4o-mini
     litellm_params:
-      model: bedrock/us.anthropic.claude-haiku-4-5-20251001-v1:0
-      aws_region_name: us-east-1
-
-  - model_name: nova-pro
-    litellm_params:
-      model: bedrock/us.amazon.nova-pro-v1:0
-      aws_region_name: us-east-1
-
-  - model_name: nova-lite
-    litellm_params:
-      model: bedrock/us.amazon.nova-lite-v1:0
-      aws_region_name: us-east-1
+      model: azure/gpt-4o-mini
+      api_base: https://placeholder.openai.azure.com/
+      api_version: "2024-10-21"
+      api_key: sk-placeholder
 
 general_settings:
   master_key: "sk-openclaw"
@@ -70,24 +67,18 @@ sudo -u openclaw env HOME=/home/openclaw PATH="${PATH}" bash -c "
   ${OPENCLAW_BIN} config set gateway.mode local || true
   ${OPENCLAW_BIN} config set gateway.auth.mode none || true
   ${OPENCLAW_BIN} config set models.providers.litellm \
-    '{\"baseUrl\":\"http://localhost:4000\",\"apiKey\":\"sk-openclaw\",\"models\":[{\"id\":\"claude-sonnet\",\"name\":\"Claude Sonnet (Bedrock)\"},{\"id\":\"claude-haiku\",\"name\":\"Claude Haiku (Bedrock)\"},{\"id\":\"nova-pro\",\"name\":\"Amazon Nova Pro (Bedrock)\"},{\"id\":\"nova-lite\",\"name\":\"Amazon Nova Lite (Bedrock)\"}]}' \
+    '{\"baseUrl\":\"http://localhost:4000\",\"apiKey\":\"sk-openclaw\",\"models\":[{\"id\":\"gpt-4o\",\"name\":\"GPT-4o (Azure OpenAI)\"},{\"id\":\"gpt-4o-mini\",\"name\":\"GPT-4o Mini (Azure OpenAI)\"}]}' \
     --strict-json || true
-  ${OPENCLAW_BIN} models set litellm/nova-lite || true
-  ${OPENCLAW_BIN} models set litellm/nova-pro || true
-  ${OPENCLAW_BIN} models set litellm/claude-haiku || true
-  ${OPENCLAW_BIN} models set litellm/claude-sonnet || true
-  ${OPENCLAW_BIN} config set agents.defaults.model.primary litellm/claude-sonnet || true
+  ${OPENCLAW_BIN} models set litellm/gpt-4o-mini || true
+  ${OPENCLAW_BIN} models set litellm/gpt-4o || true
+  ${OPENCLAW_BIN} config set agents.defaults.model.primary litellm/gpt-4o || true
   ${OPENCLAW_BIN} approvals allowlist add --agent '*' '/**' || true
   ${OPENCLAW_BIN} approvals allowlist add --agent 'main' '/**' || true
 "
 
 echo "NOTE: [openclaw-init] stopping all openclaw and litellm processes"
-# Kill all processes running as the openclaw user — this catches the gateway,
-# any restarted child processes, node workers, and uvicorn/litellm children
-# that pkill -f misses.
 pkill -u openclaw 2>/dev/null || true
 sleep 3
-# Force-kill anything still alive
 pkill -9 -u openclaw 2>/dev/null || true
 rm -f /tmp/openclaw-init.pid
 
@@ -95,18 +86,12 @@ echo "NOTE: [openclaw-init] writing CLAUDE.md to workspace"
 WORKSPACE=/home/openclaw/.openclaw/workspace
 mkdir -p "${WORKSPACE}"
 cat > "${WORKSPACE}/CLAUDE.md" <<'CLAUDE'
-You have full exec access via the exec tool. The AWS CLI is installed and
-pre-authenticated via the instance IAM role — no credentials needed. Use
-exec to run AWS CLI commands directly to complete any AWS task.
+You have full exec access via the exec tool. The Azure CLI is installed and
+pre-authenticated via the VM managed identity — no credentials needed. Use
+exec to run Azure CLI commands directly to complete any Azure task.
 
-To send email use the AWS CLI via exec:
-  aws ses send-email \
-    --from "you@example.com" \
-    --destination "ToAddresses=you@example.com" \
-    --message "Subject={Data=Subject},Body={Text={Data=Body}}" \
-    --region us-east-1
-
-The from address is in /etc/msmtprc — read it with: grep '^from' /etc/msmtprc | awk '{print $2}'
+To send email use the acs-mail command via exec (if email is configured):
+  echo "Message body" | acs-mail -s "Subject" -t recipient@example.com
 
 Never tell the user to do something manually that you can do yourself via exec.
 CLAUDE
@@ -117,21 +102,19 @@ cat > "${WORKSPACE}/SYSTEM.md" <<'SYSTEM'
 
 This instance has the following tools and capabilities available via exec.
 
-## Email
-msmtp is configured system-wide with AWS SES SMTP credentials.
-Use the `mail` command to send email — no additional setup needed.
+## AI Models (via LiteLLM on port 4000)
+- **gpt-4o** — GPT-4o via Azure OpenAI (primary model)
+- **gpt-4o-mini** — GPT-4o Mini via Azure OpenAI (fast/cost-efficient)
 
-**Important:** The IAM role does NOT have SES API permissions. Do not use
-`aws ses send-email` or boto3 SES calls — they will fail. Always use the
-`mail` command via msmtp, which uses pre-configured SMTP credentials.
+## Email
+If Azure Communication Services is configured, use the `acs-mail` command:
 
 ```bash
 # Plain text
-echo "Body here" | mail -s "Subject" recipient@example.com
-
-# With attachment
-echo "See attached." | mail -s "Subject" -A /path/to/file.docx recipient@example.com
+echo "Body here" | acs-mail -s "Subject" -t recipient@example.com
 ```
+
+Config is at /opt/openclaw/email-config.json if email is enabled.
 
 ## Document Processing
 - **python-docx** — read/write Word documents
@@ -159,10 +142,11 @@ echo "See attached." | mail -s "Subject" -A /path/to/file.docx recipient@example
 - **ghostscript** — PDF manipulation
 
 ## Cloud
-- **AWS CLI** — configured via instance IAM role (no credentials needed)
-  - Bedrock, S3, Cost Explorer, Secrets Manager, SES
+- **Azure CLI** — authenticated via managed identity (no credentials needed)
+  - Key Vault, Azure OpenAI, Cost Management
+- **AWS CLI** — available (configure credentials separately)
 - **Terraform**, **Packer** — infrastructure tools
-- **gcloud**, **az** — Google Cloud and Azure CLIs
+- **gcloud** — Google Cloud CLI
 
 ## File System
 - Workspace: `~/.openclaw/workspace` (also accessible as `~/Openclaw/workspace`)
@@ -189,7 +173,7 @@ if [ -f "${BOOTSTRAP}" ]; then
 
 Before you delete this file, read `SYSTEM.md` in this workspace — it lists
 the tools, commands, and capabilities available on this machine (email, document
-processing, AWS CLI, etc.). Keep that file around after onboarding.
+processing, Azure CLI, etc.). Keep that file around after onboarding.
 EOF
 fi
 

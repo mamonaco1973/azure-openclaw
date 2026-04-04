@@ -2,15 +2,15 @@
 # ================================================================================
 # validate.sh
 #
-# Purpose
-# Post-deploy validation for the OpenClaw AI Agent Workstation.
-# Reads Terraform outputs and prints a quick-start summary of all key
-# connection details needed to RDP into the instance.
+# Purpose:
+#   Post-deploy validation for the OpenClaw AI Agent Workstation on Azure.
+#   Reads Terraform outputs and prints a quick-start summary of all key
+#   connection details needed to RDP into the VM.
 #
-# Requirements
-# - terraform CLI installed and authenticated
-# - AWS credentials configured
-# - Terraform state must exist (run apply.sh first)
+# Requirements:
+#   - terraform CLI installed and authenticated
+#   - Azure credentials configured (ARM_* vars set)
+#   - Terraform state must exist (run apply.sh first)
 # ================================================================================
 
 set -euo pipefail
@@ -24,9 +24,8 @@ TF_DIR="${SCRIPT_DIR}/03-openclaw"
 
 cd "${TF_DIR}"
 
-INSTANCE_ID="$(terraform output -raw instance_id  2>/dev/null || echo '<not found>')"
-PUBLIC_IP="$(terraform output -raw public_ip       2>/dev/null || echo '<not found>')"
-PUBLIC_DNS="$(terraform output -raw public_dns     2>/dev/null || echo '<not found>')"
+PUBLIC_IP="$(terraform output -raw public_ip    2>/dev/null || echo '<not found>')"
+PUBLIC_FQDN="$(terraform output -raw public_fqdn 2>/dev/null || echo '<not found>')"
 
 # ================================================================================
 # Quick Start Output
@@ -34,15 +33,17 @@ PUBLIC_DNS="$(terraform output -raw public_dns     2>/dev/null || echo '<not fou
 
 echo ""
 echo "============================================================================"
-echo "OpenClaw AI Agent Workstation - Quick Start"
+echo "OpenClaw AI Agent Workstation - Quick Start (Azure)"
 echo "============================================================================"
 echo ""
 
-printf "%-28s %s\n" "NOTE: Instance ID:"         "${INSTANCE_ID}"
 printf "%-28s %s\n" "NOTE: Public IP:"            "${PUBLIC_IP}"
-printf "%-28s %s\n" "NOTE: Public FQDN:"          "${PUBLIC_DNS}"
+printf "%-28s %s\n" "NOTE: Public FQDN:"          "${PUBLIC_FQDN}"
 echo ""
 printf "%-28s %s\n" "NOTE: RDP Host:"             "${PUBLIC_IP}:3389"
 printf "%-28s %s\n" "NOTE: Username:"             "openclaw"
-printf "%-28s %s\n" "NOTE: Password:"             "See secret: openclaw_credentials"
+printf "%-28s %s\n" "NOTE: Password:"             "See Key Vault secret: openclaw-credentials"
+echo ""
+printf "%-28s %s\n" "NOTE: OpenClaw UI:"          "http://localhost:18789  (inside RDP session)"
+printf "%-28s %s\n" "NOTE: LiteLLM port:"         "4000  (loopback only)"
 echo ""

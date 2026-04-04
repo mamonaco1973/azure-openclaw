@@ -6,7 +6,8 @@ set -euo pipefail
 # ================================================================================
 #
 # Installs a broad set of tools useful for an AI agent working with documents,
-# data, web content, and media files.
+# data, web content, and media files. Includes azure-communication-email for
+# the ACS email sender configured by custom_data.sh at boot.
 #
 # ================================================================================
 
@@ -43,6 +44,7 @@ pip3 install --break-system-packages \
   tabulate \
   rich \
   arrow \
-  httpx
+  httpx \
+  azure-communication-email
 
 echo "NOTE: [python-tools] done"

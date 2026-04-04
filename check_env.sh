@@ -4,19 +4,17 @@
 # ------------------------------------------------------------------------------
 # Purpose:
 #   - Validates that required CLI tools are available in the current PATH.
-#   - Verifies AWS CLI authentication and connectivity.
-#
-# Scope:
-#   - Checks for aws, terraform, and jq binaries.
-#   - Confirms the caller identity via AWS STS.
+#   - Verifies Azure CLI authentication and connectivity.
+#   - Confirms ARM_* environment variables are set.
+#   - Checks that Azure OpenAI is available in the subscription.
 #
 # Fast-Fail Behavior:
 #   - Script exits immediately on command failure, unset variables,
 #     or failed pipelines.
 #
 # Requirements:
-#   - AWS CLI installed and configured.
-#   - Terraform installed.
+#   - Azure CLI installed and ARM_* environment variables exported.
+#   - Terraform and Packer installed.
 #   - jq installed.
 # ==============================================================================
 
@@ -27,84 +25,88 @@ set -euo pipefail
 # ------------------------------------------------------------------------------
 echo "NOTE: Validating required commands in PATH."
 
-commands=("aws" "terraform" "jq" "packer")
+commands=("az" "terraform" "jq" "packer")
 
 for cmd in "${commands[@]}"; do
   if ! command -v "${cmd}" >/dev/null 2>&1; then
     echo "ERROR: Required command not found: ${cmd}"
     exit 1
   fi
-
   echo "NOTE: Found required command: ${cmd}"
 done
 
 echo "NOTE: All required commands are available."
 
 # ------------------------------------------------------------------------------
-# AWS Connectivity Check
+# ARM Environment Variables
 # ------------------------------------------------------------------------------
-echo "NOTE: Verifying AWS CLI connectivity..."
+echo "NOTE: Validating required environment variables."
 
-aws sts get-caller-identity --query "Account" --output text >/dev/null
+required_vars=("ARM_CLIENT_ID" "ARM_CLIENT_SECRET" "ARM_SUBSCRIPTION_ID" "ARM_TENANT_ID")
+all_set=true
 
-echo "NOTE: AWS CLI authentication successful."
-
-# ------------------------------------------------------------------------------
-# Bedrock Model Access Check
-# ------------------------------------------------------------------------------
-echo "NOTE: Checking Bedrock model access..."
-
-check_bedrock_model() {
-  local label="$1"
-  local model_id="$2"
-  local payload="$3"
-
-  # Check model is active in the region
-  local base_id="${model_id#us.}"
-  local active
-  active=$(aws bedrock list-foundation-models \
-    --query "modelSummaries[?modelId=='${base_id}'].modelLifecycle.status" \
-    --output text 2>/dev/null || true)
-
-  if [ "${active}" != "ACTIVE" ]; then
-    echo "ERROR: ${label} (${base_id}) is not active in this region."
-    echo "       Check: https://console.aws.amazon.com/bedrock/home#/models"
-    return 1
+for var in "${required_vars[@]}"; do
+  if [ -z "${!var}" ]; then
+    echo "ERROR: ${var} is not set or is empty."
+    all_set=false
+  else
+    echo "NOTE: ${var} is set."
   fi
+done
 
-  # Test actual account access via a minimal invocation
-  local tmp errtmp
-  tmp=$(mktemp)
-  errtmp=$(mktemp)
-  if ! aws bedrock-runtime invoke-model \
-    --model-id "${model_id}" \
-    --body "${payload}" \
-    --cli-binary-format raw-in-base64-out \
-    "${tmp}" >/dev/null 2>"${errtmp}"; then
-    local errmsg
-    errmsg=$(cat "${errtmp}")
-    rm -f "${tmp}" "${errtmp}"
-    if echo "${errmsg}" | grep -qi "AccessDenied\|not authorized\|not subscribed"; then
-      echo "ERROR: ${label} — access not granted."
-      if [[ "${model_id}" == *"anthropic"* ]]; then
-        echo "       Request access at: https://console.aws.amazon.com/bedrock/home#/modelaccess"
-      fi
-    else
-      echo "ERROR: ${label} — invocation failed: ${errmsg}"
-    fi
-    return 1
-  fi
+if [ "${all_set}" != "true" ]; then
+  echo "ERROR: One or more required environment variables are missing."
+  exit 1
+fi
 
-  rm -f "${tmp}" "${errtmp}"
-  echo "NOTE: ${label} — OK"
-}
+echo "NOTE: All required environment variables are set."
 
-CLAUDE_PAYLOAD='{"anthropic_version":"bedrock-2023-05-31","max_tokens":1,"messages":[{"role":"user","content":"hi"}]}'
-NOVA_PAYLOAD='{"messages":[{"role":"user","content":[{"text":"hi"}]}],"inferenceConfig":{"maxTokens":1}}'
+# ------------------------------------------------------------------------------
+# Azure Login
+# ------------------------------------------------------------------------------
+echo "NOTE: Logging in to Azure using service principal..."
 
-check_bedrock_model "Claude Sonnet"   "us.anthropic.claude-sonnet-4-5-20250929-v1:0"  "${CLAUDE_PAYLOAD}"
-check_bedrock_model "Claude Haiku"    "us.anthropic.claude-haiku-4-5-20251001-v1:0"   "${CLAUDE_PAYLOAD}"
-check_bedrock_model "Amazon Nova Pro" "us.amazon.nova-pro-v1:0"                        "${NOVA_PAYLOAD}"
-check_bedrock_model "Amazon Nova Lite" "us.amazon.nova-lite-v1:0"                     "${NOVA_PAYLOAD}"
+az login \
+  --service-principal \
+  --username "${ARM_CLIENT_ID}" \
+  --password "${ARM_CLIENT_SECRET}" \
+  --tenant "${ARM_TENANT_ID}" \
+  > /dev/null 2>&1
 
-echo "NOTE: All Bedrock models accessible."
+az account set --subscription "${ARM_SUBSCRIPTION_ID}" > /dev/null 2>&1
+
+ACCOUNT=$(az account show --query "name" --output tsv 2>/dev/null)
+echo "NOTE: Azure login successful. Subscription: ${ACCOUNT}"
+
+# ------------------------------------------------------------------------------
+# Azure OpenAI Availability Check
+# ------------------------------------------------------------------------------
+echo "NOTE: Checking Azure OpenAI availability in subscription..."
+
+OPENAI_STATE=$(az provider show \
+  --namespace Microsoft.CognitiveServices \
+  --query "registrationState" \
+  --output tsv 2>/dev/null || true)
+
+if [ "${OPENAI_STATE}" != "Registered" ]; then
+  echo "NOTE: Registering Microsoft.CognitiveServices provider..."
+  az provider register --namespace Microsoft.CognitiveServices --wait > /dev/null 2>&1 || true
+fi
+
+echo "NOTE: Microsoft.CognitiveServices provider: ${OPENAI_STATE:-registering}"
+
+# Check if GPT-4o is available in East US
+MODELS=$(az cognitiveservices model list \
+  --location "eastus" \
+  --query "[?model.name=='gpt-4o'].model.name | [0]" \
+  --output tsv 2>/dev/null || true)
+
+if [ -z "${MODELS}" ]; then
+  echo "WARNING: Could not confirm gpt-4o availability in East US."
+  echo "         If your subscription lacks Azure OpenAI access, request it at:"
+  echo "         https://aka.ms/oai/access"
+else
+  echo "NOTE: Azure OpenAI gpt-4o is available in East US — OK"
+fi
+
+echo "NOTE: Environment validation complete."

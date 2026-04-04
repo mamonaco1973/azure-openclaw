@@ -3,7 +3,7 @@
 # ================================================================================
 #
 # Purpose:
-#   Build a self-contained AMI from Ubuntu 24.04 with:
+#   Build a self-contained Azure Managed Image from Ubuntu 24.04 with:
 #     - LXQt desktop + XRDP
 #     - Google Chrome
 #     - Cloud CLIs: AWS CLI v2, Azure CLI, Google Cloud SDK
@@ -13,10 +13,10 @@
 #     - systemd services for LiteLLM and OpenClaw gateway
 #
 # Design:
-#   - Base image: latest Canonical Ubuntu 24.04 (Noble) AMI.
-#   - Fully self-contained — no dependency on a pre-built base AMI.
-#   - Output AMI tagged "openclaw_ami" for use by 03-openclaw Terraform.
-#   - Builder uses pub-subnet-1 (public subnet) for SSH access during build.
+#   - Base image: latest Canonical Ubuntu 24.04 LTS from Azure Marketplace.
+#   - Fully self-contained — no dependency on a pre-built base image.
+#   - Output image named "openclaw_image_<timestamp>" for use by 03-openclaw.
+#   - Builder VM: Standard_D4s_v3 (4 vCPU / 16 GB RAM).
 #
 # ================================================================================
 
@@ -27,27 +27,20 @@
 
 packer {
   required_plugins {
-    amazon = {
-      source  = "github.com/hashicorp/amazon"
-      version = "~> 1"
+    azure = {
+      source  = "github.com/hashicorp/azure"
+      version = "~> 2"
     }
   }
 }
 
 
 # ================================================================================
-# SECTION: Base Ubuntu 24.04 AMI Lookup
+# SECTION: Locals
 # ================================================================================
 
-data "amazon-ami" "ubuntu_2404" {
-  filters = {
-    name                = "ubuntu/images/hvm-ssd-gp3/ubuntu-noble-24.04-amd64-server-*"
-    virtualization-type = "hvm"
-    root-device-type    = "ebs"
-  }
-
-  most_recent = true
-  owners      = ["099720109477"] # Canonical
+locals {
+  timestamp = regex_replace(timestamp(), "[- TZ:]", "")
 }
 
 
@@ -55,58 +48,71 @@ data "amazon-ami" "ubuntu_2404" {
 # SECTION: Build-Time Variables
 # ================================================================================
 
-variable "region" {
-  default = "us-east-1"
+variable "client_id" {
+  description = "Azure Client ID (ARM_CLIENT_ID)"
+  type        = string
 }
 
-variable "instance_type" {
-  default = "m5.xlarge"
+variable "client_secret" {
+  description = "Azure Client Secret (ARM_CLIENT_SECRET)"
+  type        = string
 }
 
-variable "vpc_id" {
-  description = "VPC ID (clawd-vpc) resolved by apply.sh from 01-core outputs"
-  default     = ""
+variable "subscription_id" {
+  description = "Azure Subscription ID (ARM_SUBSCRIPTION_ID)"
+  type        = string
 }
 
-variable "subnet_id" {
-  description = "Public subnet ID (pub-subnet-1) for SSH access during build"
-  default     = ""
+variable "tenant_id" {
+  description = "Azure Tenant ID (ARM_TENANT_ID)"
+  type        = string
+}
+
+variable "resource_group" {
+  description = "Resource group to store the managed image (openclaw-project-rg)"
+  type        = string
+  default     = "openclaw-project-rg"
+}
+
+variable "location" {
+  description = "Azure region to build in"
+  type        = string
+  default     = "East US"
+}
+
+variable "vm_size" {
+  description = "Builder VM size"
+  type        = string
+  default     = "Standard_D4s_v3"
 }
 
 
 # ================================================================================
-# SECTION: Amazon-EBS Builder Source
+# SECTION: Azure-ARM Builder Source
 # ================================================================================
 
-source "amazon-ebs" "openclaw" {
-  region        = var.region
-  instance_type = var.instance_type
-  source_ami    = data.amazon-ami.ubuntu_2404.id
-  ssh_username  = "ubuntu"
-  ssh_interface = "public_ip"
-  vpc_id        = var.vpc_id
-  subnet_id     = var.subnet_id
+source "azure-arm" "openclaw" {
+  client_id       = var.client_id
+  client_secret   = var.client_secret
+  subscription_id = var.subscription_id
+  tenant_id       = var.tenant_id
+
+  image_publisher = "Canonical"
+  image_offer     = "ubuntu-24_04-lts"
+  image_sku       = "server"
+  image_version   = "latest"
+
+  location   = var.location
+  vm_size    = var.vm_size
+  os_type    = "Linux"
+  ssh_username = "ubuntu"
 
   # Timestamped name allows multiple versions to coexist.
-  # Terraform resolves the latest via "openclaw_ami*" filter.
-  ami_name = format(
-    "openclaw_ami_%s",
-    replace(timestamp(), ":", "-")
-  )
-
-  launch_block_device_mappings {
-    device_name           = "/dev/sda1"
-    volume_size           = 64
-    volume_type           = "gp3"
-    delete_on_termination = true
-  }
-
-  tags = {
-    Name = format(
-      "openclaw_ami_%s",
-      replace(timestamp(), ":", "-")
-    )
-  }
+  # apply.sh resolves the latest via az image list.
+  managed_image_name                 = "openclaw_image_${local.timestamp}"
+  managed_image_resource_group_name  = var.resource_group
+  managed_image_storage_account_type = "Premium_LRS"
+  os_disk_size_gb                    = 128
 }
 
 
@@ -115,7 +121,7 @@ source "amazon-ebs" "openclaw" {
 # ================================================================================
 
 build {
-  sources = ["source.amazon-ebs.openclaw"]
+  sources = ["source.azure-arm.openclaw"]
 
   # Upload systemd service unit files and icon.
   provisioner "file" {
@@ -138,7 +144,7 @@ build {
     destination = "/tmp/xvfb.service"
   }
 
-  # Remove snap, install SSM agent DEB, install base packages.
+  # Remove snap, install base packages.
   provisioner "shell" {
     script          = "./scripts/01-packages.sh"
     execute_command = "sudo -E bash '{{.Path}}'"
@@ -186,7 +192,7 @@ build {
     execute_command = "sudo -E bash '{{.Path}}'"
   }
 
-  # Install Python packages and system utilities for agent use.
+  # Install Python packages, system utilities, and ACS email SDK.
   provisioner "shell" {
     script          = "./scripts/11-python-tools.sh"
     execute_command = "sudo -E bash '{{.Path}}'"
@@ -198,7 +204,7 @@ build {
     execute_command = "sudo -E bash '{{.Path}}'"
   }
 
-  # Run openclaw gateway briefly to stamp config metadata; configure model.
+  # Run openclaw gateway briefly to stamp config metadata; configure Azure OpenAI models.
   provisioner "shell" {
     script          = "./scripts/09-openclaw-init.sh"
     execute_command = "sudo -E bash '{{.Path}}'"

@@ -4,23 +4,23 @@
 # ================================================================================
 #
 # Purpose:
-#   Orchestrate controlled teardown of core infrastructure.
+#   Orchestrate controlled teardown of the OpenClaw Azure infrastructure.
 #
 # Teardown Order:
-#     1. Destroy OpenClaw EC2 host (03-openclaw).
-#     2. Deregister openclaw_ami and its EBS snapshot.
+#     1. Destroy OpenClaw VM host (03-openclaw).
+#     2. Delete all openclaw_image managed images.
 #     3. Destroy core infrastructure (01-core).
 #
 # Design Principles:
 #   - Fail-fast behavior for safe teardown.
 #
 # Requirements:
-#   - AWS CLI configured and authenticated.
+#   - Azure CLI configured and authenticated (ARM_* vars set).
 #   - Terraform installed and initialized per module.
 #
 # Exit Codes:
 #   0 = Success
-#   1 = Missing directories or Terraform/AWS CLI error
+#   1 = Missing directories or Terraform/Azure CLI error
 #
 # ================================================================================
 
@@ -28,17 +28,28 @@ set -euo pipefail
 
 
 # ================================================================================
-# SECTION: Configuration
+# SECTION: Discover Shared Resources
 # ================================================================================
 
-export AWS_DEFAULT_REGION="us-east-1"
+VAULT_NAME=$(az keyvault list \
+  --resource-group openclaw-network-rg \
+  --query "[?starts_with(name, 'openclaw-vault')].name | [0]" \
+  --output tsv 2>/dev/null || true)
+
+IMAGE_NAME=$(az image list \
+  --resource-group openclaw-project-rg \
+  --query "[?starts_with(name, 'openclaw_image')]|sort_by(@, &name)[-1].name" \
+  --output tsv 2>/dev/null || true)
+
+echo "NOTE: Key Vault: ${VAULT_NAME:-<not found>}"
+echo "NOTE: Latest image: ${IMAGE_NAME:-<not found>}"
 
 
 # ================================================================================
-# PHASE 1: Destroy OpenClaw Host
+# PHASE 1: Destroy OpenClaw VM Host
 # ================================================================================
 
-echo "NOTE: Destroying OpenClaw host..."
+echo "NOTE: Destroying OpenClaw VM host..."
 
 cd 03-openclaw || {
   echo "ERROR: Directory 03-openclaw not found"
@@ -46,38 +57,37 @@ cd 03-openclaw || {
 }
 
 terraform init
-terraform destroy -auto-approve
+
+if [ -n "${VAULT_NAME}" ] && [ -n "${IMAGE_NAME}" ]; then
+  terraform destroy -auto-approve \
+    -var="vault_name=${VAULT_NAME}" \
+    -var="openclaw_image_name=${IMAGE_NAME}"
+else
+  echo "NOTE: Missing vault or image name — attempting destroy with empty vars"
+  terraform destroy -auto-approve \
+    -var="vault_name=${VAULT_NAME:-placeholder}" \
+    -var="openclaw_image_name=${IMAGE_NAME:-placeholder}"
+fi
+
 cd ..
 
 
 # ================================================================================
-# PHASE 2: Deregister OpenClaw AMI
+# PHASE 2: Delete OpenClaw Managed Images
 # ================================================================================
 
-echo "NOTE: Deregistering all openclaw_ami AMIs..."
+echo "NOTE: Deleting all openclaw_image managed images..."
 
-ami_ids=$(aws ec2 describe-images \
-  --owners self \
-  --filters "Name=name,Values=openclaw_ami*" \
-  --query "Images[*].ImageId" \
-  --output text 2>/dev/null || true)
-
-if [ -n "${ami_ids}" ] && [ "${ami_ids}" != "None" ]; then
-  for ami_id in ${ami_ids}; do
-    snapshot_id=$(aws ec2 describe-images \
-      --image-ids "${ami_id}" \
-      --query "Images[0].BlockDeviceMappings[0].Ebs.SnapshotId" \
-      --output text)
-    aws ec2 deregister-image --image-id "${ami_id}"
-    echo "NOTE: Deregistered AMI ${ami_id}"
-    if [ -n "${snapshot_id}" ] && [ "${snapshot_id}" != "None" ]; then
-      aws ec2 delete-snapshot --snapshot-id "${snapshot_id}"
-      echo "NOTE: Deleted snapshot ${snapshot_id}"
-    fi
-  done
-else
-  echo "NOTE: No openclaw_ami found, skipping"
-fi
+az image list \
+  --resource-group openclaw-project-rg \
+  --query "[?starts_with(name, 'openclaw_image')].name" \
+  --output tsv 2>/dev/null | while read -r IMAGE; do
+    echo "NOTE: Deleting image: ${IMAGE}"
+    az image delete \
+      --name "${IMAGE}" \
+      --resource-group openclaw-project-rg \
+      || echo "WARNING: Failed to delete ${IMAGE}, skipping"
+done
 
 
 # ================================================================================
@@ -92,18 +102,7 @@ cd 01-core || {
 }
 
 terraform init
-
-SES_EMAIL=$(aws secretsmanager get-secret-value \
-  --secret-id openclaw_ses_smtp \
-  --query SecretString \
-  --output text 2>/dev/null | jq -r '.from_email // empty' 2>/dev/null || true)
-
-if [ -n "${SES_EMAIL}" ]; then
-  echo "NOTE: Using existing SES email: ${SES_EMAIL}"
-  terraform destroy -auto-approve -var="ses_email=${SES_EMAIL}"
-else
-  terraform destroy -auto-approve
-fi
+terraform destroy -auto-approve
 
 cd ..
 
