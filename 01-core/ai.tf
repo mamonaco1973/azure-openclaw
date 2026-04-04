@@ -26,7 +26,7 @@ resource "azurerm_cognitive_account" "openai" {
   name                  = "openclaw-openai-${random_string.openai_suffix.result}"
   resource_group_name   = azurerm_resource_group.network.name
   location              = azurerm_resource_group.network.location
-  kind                  = "OpenAI"
+  kind                  = "AIServices"
   sku_name              = "S0"
   custom_subdomain_name = "openclaw-openai-${random_string.openai_suffix.result}"
 }
