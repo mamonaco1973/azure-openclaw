@@ -43,6 +43,14 @@ resource "azurerm_email_communication_service_domain" "azure_domain" {
 }
 
 # ------------------------------------------------------------------------------
+# Link the email domain to the communication service
+# ------------------------------------------------------------------------------
+resource "azurerm_communication_service_email_domain_association" "openclaw" {
+  communication_service_id = azurerm_communication_service.openclaw.id
+  email_service_domain_id  = azurerm_email_communication_service_domain.azure_domain.id
+}
+
+# ------------------------------------------------------------------------------
 # Store email config in Key Vault
 # ------------------------------------------------------------------------------
 resource "azurerm_key_vault_secret" "email_config" {

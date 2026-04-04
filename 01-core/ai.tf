@@ -81,7 +81,7 @@ resource "azurerm_key_vault_secret" "openai_config" {
   value = jsonencode({
     endpoint          = azurerm_cognitive_account.openai.endpoint
     api_key           = azurerm_cognitive_account.openai.primary_access_key
-    api_version       = "2024-10-21"
+    api_version       = "2025-03-01-preview"
     gpt4o_deployment      = azurerm_cognitive_deployment.gpt4o.name
     gpt4o_mini_deployment = azurerm_cognitive_deployment.gpt4o_mini.name
   })
