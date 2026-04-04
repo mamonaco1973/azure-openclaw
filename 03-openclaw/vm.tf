@@ -58,9 +58,9 @@ resource "azurerm_linux_virtual_machine" "openclaw" {
   name                            = "openclaw-host"
   location                        = data.azurerm_resource_group.project.location
   resource_group_name             = data.azurerm_resource_group.project.name
-  size                            = var.vm_size
-  admin_username                  = "openclaw"
-  admin_password                  = random_shuffle.word.result[0]
+  size           = var.vm_size
+  admin_username                  = "ubuntu"
+  admin_password                  = random_password.ubuntu.result
   disable_password_authentication = false
 
   network_interface_ids = [

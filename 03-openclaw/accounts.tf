@@ -15,7 +15,21 @@
 
 
 # ================================================================================
-# SECTION: Memorable Word List
+# SECTION: ubuntu Admin Password Generation
+# ================================================================================
+
+resource "random_password" "ubuntu" {
+  length           = 20
+  special          = true
+  override_special = "!@#$%^&*"
+  min_lower        = 2
+  min_upper        = 2
+  min_numeric      = 2
+  min_special      = 2
+}
+
+# ================================================================================
+# SECTION: openclaw User Password Generation
 # ================================================================================
 
 locals {
@@ -27,11 +41,6 @@ locals {
     "castle", "wonder", "gentle", "driver", "coffee"
   ]
 }
-
-
-# ================================================================================
-# SECTION: Password Generation
-# ================================================================================
 
 resource "random_shuffle" "word" {
   input        = local.memorable_words
@@ -54,6 +63,17 @@ locals {
 # ================================================================================
 # SECTION: Key Vault Secret
 # ================================================================================
+
+resource "azurerm_key_vault_secret" "ubuntu_credentials" {
+  name         = "ubuntu-credentials"
+  key_vault_id = data.azurerm_key_vault.openclaw_vault.id
+  content_type = "application/json"
+
+  value = jsonencode({
+    username = "ubuntu"
+    password = random_password.ubuntu.result
+  })
+}
 
 resource "azurerm_key_vault_secret" "openclaw_credentials" {
   name         = "openclaw-credentials"
