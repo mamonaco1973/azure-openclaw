@@ -20,6 +20,7 @@ resource "azurerm_communication_service" "openclaw" {
   name                = "openclaw-comms-${random_string.kv_suffix.result}"
   resource_group_name = azurerm_resource_group.network.name
   data_location       = "United States"
+
 }
 
 # ------------------------------------------------------------------------------

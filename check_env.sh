@@ -79,34 +79,23 @@ ACCOUNT=$(az account show --query "name" --output tsv 2>/dev/null)
 echo "NOTE: Azure login successful. Subscription: ${ACCOUNT}"
 
 # ------------------------------------------------------------------------------
-# Azure OpenAI Availability Check
+# Azure Provider Registrations
 # ------------------------------------------------------------------------------
-echo "NOTE: Checking Azure OpenAI availability in subscription..."
+echo "NOTE: Checking Azure provider registrations..."
 
-OPENAI_STATE=$(az provider show \
-  --namespace Microsoft.CognitiveServices \
-  --query "registrationState" \
-  --output tsv 2>/dev/null || true)
+for namespace in Microsoft.CognitiveServices Microsoft.Communication; do
+  STATE=$(az provider show \
+    --namespace "${namespace}" \
+    --query "registrationState" \
+    --output tsv 2>/dev/null || true)
 
-if [ "${OPENAI_STATE}" != "Registered" ]; then
-  echo "NOTE: Registering Microsoft.CognitiveServices provider..."
-  az provider register --namespace Microsoft.CognitiveServices --wait > /dev/null 2>&1 || true
-fi
-
-echo "NOTE: Microsoft.CognitiveServices provider: ${OPENAI_STATE:-registering}"
-
-# Check if GPT-4o is available in East US
-MODELS=$(az cognitiveservices model list \
-  --location "eastus" \
-  --query "[?model.name=='gpt-4o'].model.name | [0]" \
-  --output tsv 2>/dev/null || true)
-
-if [ -z "${MODELS}" ]; then
-  echo "WARNING: Could not confirm gpt-4o availability in East US."
-  echo "         If your subscription lacks Azure OpenAI access, request it at:"
-  echo "         https://aka.ms/oai/access"
-else
-  echo "NOTE: Azure OpenAI gpt-4o is available in East US — OK"
-fi
+  if [ "${STATE}" != "Registered" ]; then
+    echo "NOTE: Registering ${namespace}..."
+    az provider register --namespace "${namespace}" --wait > /dev/null 2>&1 || true
+    echo "NOTE: ${namespace} registered."
+  else
+    echo "NOTE: ${namespace} already registered."
+  fi
+done
 
 echo "NOTE: Environment validation complete."
