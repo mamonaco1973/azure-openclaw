@@ -38,7 +38,7 @@ resource "azurerm_email_communication_service" "openclaw" {
 resource "azurerm_email_communication_service_domain" "azure_domain" {
   name              = "AzureManagedDomain"
   email_service_id  = azurerm_email_communication_service.openclaw.id
-  domain_management = "AzureManagedDomain"
+  domain_management = "AzureManaged"
 }
 
 # ------------------------------------------------------------------------------

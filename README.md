@@ -1,30 +1,30 @@
-# AI Agent Workstation on AWS with OpenClaw, LiteLLM, and Bedrock
+# AI Agent Workstation on Azure with OpenClaw, LiteLLM, and Azure OpenAI
 
-This project delivers a fully automated **AI agent workstation** on AWS, built
+This project delivers a fully automated **AI agent workstation** on Azure, built
 using **Terraform**, **Packer**, and **OpenClaw** — an agentic coding and task
-automation platform backed by **AWS Bedrock** foundation models via a
-**LiteLLM proxy**.
+automation platform backed by **Azure OpenAI** models via a **LiteLLM proxy**.
 
-It provisions a hardened **Ubuntu 24.04 EC2 instance** with a full **LXQt
-desktop environment** accessible over **RDP**, pre-loaded with developer
-tooling, cloud CLIs, and a running OpenClaw gateway — ready to accept work
-from the moment you connect.
+It provisions an **Ubuntu 24.04 Azure VM** with a full **LXQt desktop
+environment** accessible over **RDP**, pre-loaded with developer tooling, cloud
+CLIs, and a running OpenClaw gateway — ready to accept work from the moment
+you connect.
 
 Users RDP into the desktop and interact with OpenClaw through its web interface
 at `http://localhost:18789`. The agent has full access to the local filesystem,
-terminal, browser, and AWS services via the instance IAM role — no credentials
-to manage, no keys to rotate.
+terminal, browser, and Azure services via the VM managed identity — no
+credentials to manage, no keys to rotate.
 
 ![openclaw](openclaw.png)
 
-OpenClaw is backed by four **AWS Bedrock** models available for selection at
-runtime: **Claude Sonnet**, **Claude Haiku**, **Amazon Nova Pro**, and
-**Amazon Nova Lite** — all routed through a locally running **LiteLLM proxy**
-so the agent works with any model without configuration changes.
+OpenClaw is backed by two **Azure OpenAI** models available for selection at
+runtime: **GPT-4o** and **GPT-4o Mini** — both routed through a locally running
+**LiteLLM proxy** so the agent works with either model without configuration
+changes.
 
-Outbound **email** is configured automatically at boot using **AWS SES** SMTP
-credentials retrieved from Secrets Manager, giving the agent the ability to
-send reports, notifications, and file attachments without any manual setup.
+Outbound **email** is configured automatically at boot using **Azure
+Communication Services** credentials retrieved from Key Vault, giving the agent
+the ability to send reports, notifications, and file attachments without any
+manual setup.
 
 ---
 
@@ -32,103 +32,102 @@ send reports, notifications, and file attachments without any manual setup.
 
 1. **Autonomous AI Agent** — OpenClaw operates as a fully autonomous coding
    and task agent. It can write and execute code, browse the web, manipulate
-   files, call AWS APIs, and send email — all driven by natural language
+   files, call Azure APIs, and send email — all driven by natural language
    instructions.
-2. **AWS Bedrock Model Integration** — Four foundation models (Claude Sonnet,
-   Claude Haiku, Amazon Nova Pro, Amazon Nova Lite) are available via LiteLLM
-   proxy running on loopback. Model selection requires no code changes — switch
-   at any time in the OpenClaw UI.
+2. **Azure OpenAI Model Integration** — Two models (GPT-4o and GPT-4o Mini)
+   are available via LiteLLM proxy running on loopback. Model selection requires
+   no code changes — switch at any time in the OpenClaw UI.
 3. **Fully Automated Provisioning** — A single `apply.sh` command provisions
-   the VPC, builds the AMI with Packer, and deploys the EC2 instance with
-   Terraform. Bedrock model IDs are resolved dynamically from the live API.
-4. **Zero Credential Management** — The EC2 instance authenticates to Bedrock,
-   Secrets Manager, and Cost Explorer through its IAM instance profile. No
-   access keys are stored on disk or in code.
+   the VNet, Key Vault, Azure OpenAI deployments, builds the managed image with
+   Packer, and deploys the VM with Terraform.
+4. **Zero Credential Management** — The VM authenticates to Key Vault and Azure
+   services through its system-assigned managed identity. No access keys are
+   stored on disk or in code.
 5. **Pre-Configured Desktop Environment** — LXQt desktop with Google Chrome,
    Visual Studio Code, OnlyOffice, a file manager, and terminal — all pinned
    to the desktop and ready on first login.
-6. **Integrated Email via SES** — msmtp is configured system-wide at boot
-   using SMTP credentials from Secrets Manager. The agent can send plain text
-   email, HTML email, and file attachments using the standard `mail` command.
-7. **Infrastructure as Code** — Terraform manages all AWS resources across
-   three phases (core networking, AMI build, EC2 host) in a fully repeatable,
-   auditable way. Packer builds the AMI from a clean Ubuntu 24.04 base with
-   no dependencies on a pre-built image.
+6. **Integrated Email via ACS** — An `acs-mail` wrapper is configured at boot
+   using Azure Communication Services credentials from Key Vault. The agent can
+   send plain text email and file attachments with a single command.
+7. **Infrastructure as Code** — Terraform manages all Azure resources across
+   three phases (core networking + AI + email, image build, VM host) in a fully
+   repeatable, auditable way. Packer builds the managed image from a clean
+   Ubuntu 24.04 base with no dependencies on a pre-built image.
 
 ---
 
 ## Architecture
 
-![aws-openclaw](aws-openclaw.png)
-
-The deployment spans three Terraform phases backed by a Packer AMI build.
-**01-core** establishes the network foundation — a VPC with public and private
-subnets, a NAT gateway for egress, and the SES email identity with its SMTP
-credentials stored in Secrets Manager. **02-packer** builds the `openclaw_ami`
-from a clean Ubuntu 24.04 base, installing the full LXQt desktop, developer
-tooling, and the OpenClaw and LiteLLM services. **03-openclaw** launches the
-EC2 instance from that AMI into the public subnet, attaches an IAM instance
-profile for credential-free access to Bedrock and Secrets Manager, and runs
-`userdata.sh` at first boot to wire everything together.
+The deployment spans three Terraform phases backed by a Packer managed image
+build. **01-core** establishes the network foundation — a VNet with a VM subnet
+and NAT gateway for egress — and creates the Azure Key Vault, the Azure OpenAI
+account with both model deployments, and the Azure Communication Services email
+resource. Secrets (OpenAI config, email connection string) are stored in Key
+Vault immediately after creation. **02-packer** builds the `openclaw_image` from
+a clean Ubuntu 24.04 base, installing the full LXQt desktop, developer tooling,
+and the OpenClaw and LiteLLM services. **03-openclaw** deploys the VM from that
+image, attaches a system-assigned managed identity, assigns RBAC roles for Key
+Vault and Cost Management access, and runs `custom_data.sh` at first boot to
+wire everything together.
 
 At runtime, the user connects via RDP to the LXQt desktop and opens OpenClaw
 in Chrome. Prompts flow from the OpenClaw gateway to the LiteLLM proxy running
-on loopback, which routes model requests to AWS Bedrock — keeping all inference
-traffic within AWS. The instance IAM role handles authentication throughout, so
-no access keys ever touch the filesystem. Outbound email routes through AWS SES
-using SMTP credentials that `userdata.sh` pulls from Secrets Manager on first
-boot.
+on loopback, which routes model requests to Azure OpenAI using the API key
+retrieved from Key Vault at boot. The managed identity handles all Azure
+authentication throughout — no access keys ever touch the filesystem. Outbound
+email routes through Azure Communication Services using the connection string
+that `custom_data.sh` pulls from Key Vault on first boot.
 
-
+---
 
 ## Key Resources
 
 | Resource | Value |
 |---|---|
-| Region | `us-east-1` |
-| VPC / CIDR | `clawd-vpc` / `10.0.0.0/23` |
-| Instance tag | `openclaw-host` |
-| Instance type | `t3.xlarge` (variable) |
+| Region | `East US` |
+| VNet / CIDR | `openclaw-vnet` / `10.0.0.0/23` |
+| VM name | `openclaw-host` |
+| VM size | `Standard_D4s_v3` (variable) |
 | LiteLLM port | `4000` (loopback) |
 | OpenClaw gateway port | `18789` (loopback) |
 | Linux user | `openclaw` |
-| Password source | Secrets Manager `openclaw_credentials` |
-| Email credentials | Secrets Manager `openclaw_ses_smtp` |
+| Password source | Key Vault secret `openclaw-credentials` |
+| AI models | `gpt-4o`, `gpt-4o-mini` (Azure OpenAI) |
 
 ---
 
 ## Prerequisites
 
-* [An AWS Account](https://aws.amazon.com/console/)
-* [Install AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html)
+* [An Azure Account](https://portal.azure.com/)
+* [Install Azure CLI](https://learn.microsoft.com/en-us/cli/azure/install-azure-cli)
 * [Install Terraform](https://developer.hashicorp.com/terraform/install)
 * [Install Packer](https://developer.hashicorp.com/packer/install)
 * An RDP client (Windows built-in, macOS Microsoft Remote Desktop, or Remmina on Linux)
+* A service principal with the following roles on your subscription:
+  - `Contributor`
+  - `User Access Administrator` (required for RBAC role assignments)
 
-If this is your first time following along, we recommend starting with this video:
-**[AWS + Terraform: Easy Setup](https://www.youtube.com/watch?v=9clW3VQLyxA)** — it walks through configuring your AWS credentials, Terraform backend, and CLI environment.
+The following environment variables must be exported before running `apply.sh`:
 
-> **Bedrock Model Access:** Before deploying, enable model access in your AWS
-> account for all four models used by this project:
-> - `anthropic.claude-sonnet-4-5-20250929-v1:0`
-> - `anthropic.claude-haiku-4-5-20251001-v1:0`
-> - `amazon.nova-pro-v1:0`
-> - `amazon.nova-lite-v1:0`
->
-> Enable them in the [Bedrock Model Access console](https://console.aws.amazon.com/bedrock/home#/modelaccess).
+```bash
+export ARM_CLIENT_ID="<service-principal-app-id>"
+export ARM_CLIENT_SECRET="<service-principal-secret>"
+export ARM_SUBSCRIPTION_ID="<your-subscription-id>"
+export ARM_TENANT_ID="<your-tenant-id>"
+```
 
-> **SES Email Verification:** During `01-core` deployment you will be prompted
-> for an email address to use as the SES sender identity. AWS will send a
-> verification email to that address — click the link before attempting to send
-> outbound email from the agent. Until verified, SES will reject all sends.
+> **Azure OpenAI Access:** Azure OpenAI is not available by default in all
+> subscriptions. If your subscription has not previously used Azure OpenAI,
+> you may need to request access at:
+> [https://aka.ms/oai/access](https://aka.ms/oai/access)
 
 ---
 
 ## Download this Repository
 
 ```bash
-git clone https://github.com/mamonaco1973/aws-openclaw.git
-cd aws-openclaw
+git clone https://github.com/mamonaco1973/azure-openclaw.git
+cd azure-openclaw
 ```
 
 ---
@@ -136,22 +135,18 @@ cd aws-openclaw
 ## Build the Code
 
 Run [check_env.sh](check_env.sh) to validate your environment, then run
-[apply.sh](apply.sh) to provision all infrastructure and build the AMI.
+[apply.sh](apply.sh) to provision all infrastructure and build the managed image.
 
 ```bash
-~/aws-openclaw$ ./apply.sh
-NOTE: Validating required commands in PATH.
-NOTE: Found required command: aws
+~/azure-openclaw$ ./apply.sh
+NOTE: Running environment validation...
+NOTE: Found required command: az
 NOTE: Found required command: terraform
 NOTE: Found required command: jq
 NOTE: Found required command: packer
 NOTE: All required commands are available.
-NOTE: AWS CLI authentication successful.
-NOTE: Checking Bedrock model access...
-NOTE: Claude Sonnet — OK
-NOTE: Claude Haiku — OK
-NOTE: Amazon Nova Pro — OK
-NOTE: Amazon Nova Lite — OK
+NOTE: All required environment variables are set.
+NOTE: Azure login successful.
 NOTE: Building core infrastructure...
 
 Initializing the backend...
@@ -159,12 +154,16 @@ Initializing the backend...
 
 `apply.sh` performs the following steps in order:
 
-1. Runs `check_env.sh` to validate required CLI tools and Bedrock model access
-2. Deploys `01-core` — VPC, subnets, NAT gateway, SES identity, SMTP secret
-3. Resolves VPC and subnet IDs from Terraform outputs for the Packer build
-4. Runs `packer build` against `02-packer/openclaw.pkr.hcl` to produce `openclaw_ami`
-5. Queries `aws bedrock list-foundation-models` to resolve the latest active model IDs
-6. Deploys `03-openclaw` — EC2 instance, IAM role, security group, password secret
+1. Runs `check_env.sh` to validate required CLI tools, ARM_* environment
+   variables, and Azure login
+2. Deploys `01-core` — VNet, Key Vault, Azure OpenAI (gpt-4o + gpt-4o-mini),
+   Azure Communication Services email
+3. Captures the Key Vault name from Terraform outputs
+4. Runs `packer build` against `02-packer/openclaw.pkr.hcl` to produce
+   `openclaw_image_<timestamp>`
+5. Discovers the latest built image name via `az image list`
+6. Deploys `03-openclaw` — Azure VM, managed identity, RBAC assignments,
+   Key Vault password secret
 7. Runs `validate.sh` and prints the RDP connection details
 
 To tear down all resources:
@@ -173,45 +172,55 @@ To tear down all resources:
 ./destroy.sh
 ```
 
-> **Note:** `destroy.sh` deregisters the Packer-built AMI and deletes its
-> snapshot before destroying the Terraform state, so no orphaned AMIs are left
-> behind.
+> **Note:** `destroy.sh` deletes all `openclaw_image_*` managed images before
+> destroying the Terraform state, so no orphaned images are left behind.
 
 ---
 
-### Build Results
+## Build Results
 
 When the deployment completes, the following resources are created:
 
 - **Networking (01-core):**
-  - VPC `clawd-vpc` with CIDR `10.0.0.0/23`
-  - Public subnets `pub-subnet-1` / `pub-subnet-2` with internet gateway
-  - Private subnets `vm-subnet-1` / `vm-subnet-2` with NAT gateway for egress
-  - Elastic IP for the NAT gateway
+  - Resource groups `openclaw-network-rg` and `openclaw-project-rg`
+  - VNet `openclaw-vnet` with CIDR `10.0.0.0/23`
+  - Subnet `vm-subnet` (10.0.0.0/25) with NSG allowing RDP inbound
+  - NAT gateway for stable outbound internet access
+
+- **Key Vault (01-core):**
+  - Azure Key Vault `openclaw-vault-<suffix>` with RBAC authorization
+  - Secrets: `openclaw-openai-config`, `openclaw-email-config`
+  - Secret `openclaw-credentials` added by `03-openclaw` at deploy time
+
+- **Azure OpenAI (01-core):**
+  - Cognitive account with two deployments:
+
+    | Deployment | Model | Purpose |
+    |---|---|---|
+    | `gpt-4o` | GPT-4o 2024-11-20 | Primary capable model |
+    | `gpt-4o-mini` | GPT-4o Mini 2024-07-18 | Fast / cost-efficient model |
 
 - **Email (01-core):**
-  - **SES Email Identity** — registers your sender address with AWS Simple
-    Email Service (requires one-time verification click)
-  - **IAM SMTP User** — dedicated IAM user with `ses:SendRawEmail` permission
-    scoped to the verified identity
-  - **Secrets Manager secret** `openclaw_ses_smtp` — stores SMTP host, port,
-    username, password, and from address; retrieved at instance boot by
-    `userdata.sh`
+  - Azure Communication Services resource
+  - Email Communication Service with Azure Managed Domain (auto-verified,
+    no DNS setup required)
+  - Connection string stored in Key Vault secret `openclaw-email-config`
 
-- **AMI (02-packer):**
-  - Ubuntu 24.04 base image built in `pub-subnet-1` using an `m5.xlarge`
-    builder instance
+- **Managed Image (02-packer):**
+  - Ubuntu 24.04 base image built on `Standard_D4s_v3` builder VM
   - **LXQt** lightweight desktop environment with **XRDP** for remote access
     at 16-bit color depth
   - **Xvfb** virtual framebuffer on `:99` for headless browser operation
     (used by the OpenClaw browser tool when no RDP session is active)
   - **Google Chrome**, **Visual Studio Code**, **OnlyOffice Desktop Editors**,
     **PCManFM-Qt** file manager, **QTerminal**
-  - **AWS CLI v2**, **Azure CLI**, **Google Cloud SDK**, **Terraform**, **Packer**, **Git**
+  - **AWS CLI v2**, **Azure CLI**, **Google Cloud SDK**, **Terraform**,
+    **Packer**, **Git**
   - **Node.js 22**, **pnpm**, **OpenClaw** installed globally
   - **LiteLLM proxy** in a Python venv at `/opt/litellm-venv`
   - **Python tools** — python-docx, python-pptx, openpyxl, pandas, numpy,
-    matplotlib, pymupdf, reportlab, beautifulsoup4, httpx, rich, and more
+    matplotlib, pymupdf, reportlab, beautifulsoup4, httpx, rich,
+    azure-communication-email, and more
   - **System utilities** — ffmpeg, imagemagick, pandoc, poppler-utils,
     ghostscript, sqlite3, jq, xmlstarlet, csvkit, msmtp
   - **OpenClaw config pre-stamped** — gateway metadata written at build time
@@ -220,28 +229,27 @@ When the deployment completes, the following resources are created:
     set to allow all paths (`/**`) so the agent can run commands immediately
   - Desktop shortcuts pinned for all applications
 
-- **EC2 Instance (03-openclaw):**
-  - `t3.xlarge` instance launched from `openclaw_ami` with a 128 GB gp3 root
-    volume
+- **Azure VM (03-openclaw):**
+  - `Standard_D4s_v3` instance launched from `openclaw_image` with a 128 GB
+    Premium SSD OS disk
   - Public IP assigned; port 3389 open for direct RDP access
-  - **IAM instance profile** (`openclaw-role`) grants:
+  - **System-assigned managed identity** with the following RBAC roles:
 
-    | Policy | Purpose |
-    |---|---|
-    | `AmazonSSMManagedInstanceCore` | SSM Session Manager (shell access without SSH) |
-    | `openclaw-bedrock` | `bedrock:InvokeModel` and `InvokeModelWithResponseStream` on all foundation models and inference profiles |
-    | `openclaw-secrets` | `secretsmanager:GetSecretValue` scoped to `openclaw_credentials*` and `openclaw_ses_smtp*` |
-    | `openclaw-cost-explorer` | `ce:GetCostAndUsage`, `ce:GetCostForecast`, and related Cost Explorer read APIs |
+    | Role | Scope | Purpose |
+    |---|---|---|
+    | Key Vault Secrets User | Key Vault | Read credentials and config at boot |
+    | Cost Management Reader | Subscription | Azure cost queries via CLI |
 
-  - **`userdata.sh`** runs at first boot:
-    1. Reads `openclaw_credentials` from Secrets Manager and sets the
-       `openclaw` Linux user password via `chpasswd`
-    2. Writes `/opt/openclaw/litellm-config.yaml` with the actual Bedrock
-       model IDs resolved by `apply.sh`
-    3. Reads `openclaw_ses_smtp` from Secrets Manager and writes
-       `/etc/msmtprc` and `~/.msmtprc` with SMTP credentials, then
-       installs a nightly cron job (8 AM UTC) for an AWS cost report email
-    4. Starts `litellm.service` and `openclaw-gateway.service`
+  - **`custom_data.sh`** runs at first boot:
+    1. Logs in with managed identity (`az login --identity`)
+    2. Reads `openclaw-credentials` from Key Vault and sets the `openclaw`
+       Linux user password via `chpasswd`
+    3. Reads `openclaw-openai-config` from Key Vault and writes
+       `/opt/openclaw/litellm-config.yaml` with the real Azure OpenAI
+       endpoint, API key, and deployment names
+    4. Reads `openclaw-email-config` from Key Vault and installs the
+       `acs-mail` wrapper with the ACS connection string
+    5. Starts `litellm.service` and `openclaw-gateway.service`
 
 - **Systemd Services:**
   - `xvfb.service` — Xvfb virtual framebuffer, starts before gateway
@@ -253,11 +261,12 @@ When the deployment completes, the following resources are created:
 
 ## Connecting to the Instance
 
-After `apply.sh` completes, the instance's public IP is printed by `validate.sh`.
+After `apply.sh` completes, the VM's public IP and FQDN are printed by
+`validate.sh`.
 
 ### Direct RDP
 
-Connect your RDP client to the instance's public IP on port `3389`.
+Connect your RDP client to the VM's public IP on port `3389`.
 
 ```
 Host:     <public-ip>:3389
@@ -265,27 +274,17 @@ Username: openclaw
 Password: (retrieved below)
 ```
 
-### SSM Port-Forward (no inbound RDP required)
-
-```bash
-INSTANCE_ID=$(cd 03-openclaw && terraform output -raw instance_id)
-
-aws ssm start-session \
-  --target "$INSTANCE_ID" \
-  --document-name AWS-StartPortForwardingSession \
-  --parameters '{"portNumber":["3389"],"localPortNumber":["13389"]}' \
-  --region us-east-1
-```
-
-Then connect your RDP client to `localhost:13389`.
-
 ### Getting the Password
 
 ```bash
-aws secretsmanager get-secret-value \
-  --secret-id openclaw_credentials \
-  --query SecretString \
-  --output text | jq -r '.password'
+VAULT=$(az keyvault list \
+  --resource-group openclaw-network-rg \
+  --query "[0].name" --output tsv)
+
+az keyvault secret show \
+  --vault-name "$VAULT" \
+  --name openclaw-credentials \
+  --query value --output tsv | jq -r '.password'
 ```
 
 ---
@@ -298,14 +297,12 @@ OpenClaw web interface.
 
 ### Selecting a Model
 
-Click the model selector in the OpenClaw toolbar. Four models are available:
+Click the model selector in the OpenClaw toolbar. Two models are available:
 
 | Model | Best for |
 |---|---|
-| **Claude Sonnet** | Complex reasoning, multi-step coding tasks, analysis |
-| **Claude Haiku** | Fast responses, simple tasks, iteration |
-| **Amazon Nova Pro** | General purpose, strong instruction following |
-| **Amazon Nova Lite** | High throughput, cost-efficient tasks |
+| **GPT-4o** | Complex reasoning, multi-step coding tasks, analysis |
+| **GPT-4o Mini** | Fast responses, simple tasks, iteration |
 
 ### Agent Capabilities
 
@@ -313,11 +310,11 @@ OpenClaw's `main` agent has full access to:
 
 | Capability | Details |
 |---|---|
-| **Exec** | Run any shell command — bash, Python, AWS CLI, cron, etc. |
+| **Exec** | Run any shell command — bash, Python, Azure CLI, cron, etc. |
 | **File system** | Read, write, and manage files anywhere under the home directory |
 | **Browser** | Open URLs, extract page content, take screenshots via headless Chrome |
-| **Email** | Send plain text and attachments via `mail` (msmtp + SES) |
-| **AWS APIs** | Full access via the instance IAM role — no credentials needed |
+| **Email** | Send plain text and attachments via `acs-mail` (Azure Communication Services) |
+| **Azure APIs** | Full access via managed identity — no credentials needed |
 
 The agent's workspace is at `~/.openclaw/workspace` (also accessible as
 `~/Openclaw/workspace` via symlink). A `SYSTEM.md` file in the workspace
@@ -326,9 +323,9 @@ what it can do without being told.
 
 ---
 
-## Demo: AWS Cost Report
+## Demo: Azure Cost Report
 
-This demo shows OpenClaw autonomously generating an AWS cost report and
+This demo shows OpenClaw autonomously generating an Azure cost report and
 scheduling it as a nightly recurring task — using only natural language
 instructions.
 
@@ -336,28 +333,25 @@ instructions.
 
 A well-formed cost report includes:
 
-- **Month-to-date total** — total blended spend from the first of the current
-  month through yesterday, in USD
+- **Month-to-date total** — total spend from the first of the current month
+  through yesterday, in USD
 - **Daily breakdown for the last 7 days** — one line per day showing the date
   and that day's total spend, so you can spot anomalies or unexpected spikes
-- **Top 10 services this month** — ranked by spend, showing the service name
-  and month-to-date cost for each, so you can immediately see what is driving
-  the bill
+- **Top services this month** — ranked by spend, showing the service name and
+  month-to-date cost for each
 
-The report is sent as an email to the verified SES address configured at
-deployment time.
+The report is sent as an email to the configured ACS sender address.
 
 ### Step 1 — Generate and Send a Test Report
 
 Paste this prompt into OpenClaw:
 
-> Generate an AWS cost report with the month-to-date total, a daily breakdown for the last 7 days, and the top 10 services by spend this month. Send it as a formatted HTML email to XXXXXXXX using msmtp directly and make that e-mail address the sender.
+> Generate an Azure cost report with the month-to-date total, a daily breakdown for the last 7 days, and the top services by spend this month. Send it as a formatted email to XXXXXXXX using acs-mail.
 
-OpenClaw will use the AWS CLI to query Cost Explorer, format the report, and
-send it via the `mail` command. It knows the recipient from the msmtp
-configuration and knows the AWS CLI is available via the instance IAM role —
-no additional instructions needed. Confirm the email arrives and the numbers
-look correct before proceeding.
+OpenClaw will use the Azure CLI to query Cost Management, format the report,
+and send it via `acs-mail`. It knows the Azure CLI is authenticated via managed
+identity — no additional instructions needed. Confirm the email arrives and the
+numbers look correct before proceeding.
 
 ### Step 2 — Schedule it as a Nightly Report
 
@@ -366,18 +360,17 @@ Once you have verified the test email, paste this prompt:
 > Schedule that as a nightly report.
 
 OpenClaw will save the script it just wrote, make it executable, and add a
-crontab entry to run it on a schedule. It will show you the registered crontab
-entry so you can confirm the schedule before the conversation ends.
+crontab entry to run it on a schedule.
 
 ---
 
 ## Packer Build Scripts
 
-The AMI is built from Ubuntu 24.04 using the following scripts in order:
+The managed image is built from Ubuntu 24.04 using the following scripts in order:
 
 | Script | Purpose |
 |---|---|
-| `01-packages.sh` | Removes snap, installs SSM agent DEB, base packages |
+| `01-packages.sh` | Removes snap, installs base packages |
 | `02-desktop.sh` | LXQt desktop environment |
 | `03-xrdp.sh` | XRDP + LXQt session configuration |
 | `04-chrome.sh` | Google Chrome Stable |
@@ -385,21 +378,18 @@ The AMI is built from Ubuntu 24.04 using the following scripts in order:
 | `06-user.sh` | `openclaw` Linux user with passwordless sudo |
 | `07-node.sh` | Node.js 22, pnpm, OpenClaw global install |
 | `08-litellm.sh` | LiteLLM proxy in Python venv at `/opt/litellm-venv` |
-| `09-openclaw-init.sh` | Runs gateway briefly to stamp config; configures LiteLLM provider and exec allowlist; writes `SYSTEM.md` |
+| `09-openclaw-init.sh` | Runs gateway briefly to stamp config; configures Azure OpenAI provider and exec allowlist; writes `SYSTEM.md` |
 | `10-services.sh` | Installs and enables systemd service units; sets up desktop icons and symlinks |
-| `11-python-tools.sh` | Python packages and system utilities for agent use |
+| `11-python-tools.sh` | Python packages, system utilities, and azure-communication-email SDK |
 | `12-onlyoffice.sh` | OnlyOffice Desktop Editors |
 
 ---
 
-## IAM Permissions Summary
+## RBAC Permissions Summary
 
-The `openclaw-role` instance profile grants the following permissions:
+The VM managed identity is granted the following roles:
 
-| Policy | Actions | Scope |
+| Role | Scope | Purpose |
 |---|---|---|
-| `AmazonSSMManagedInstanceCore` | SSM Session Manager | AWS managed |
-| `openclaw-bedrock` | `InvokeModel`, `InvokeModelWithResponseStream` | All foundation models and inference profiles |
-| `openclaw-secrets` | `GetSecretValue` | `openclaw_credentials*`, `openclaw_ses_smtp*` |
-| `openclaw-cost-explorer` | `GetCostAndUsage`, `GetCostForecast`, and related reads | `*` (Cost Explorer requires resource `*`) |
-
+| Key Vault Secrets User | Key Vault | Read credentials and config at boot |
+| Cost Management Reader | Subscription | `az costmanagement` queries |
