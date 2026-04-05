@@ -39,7 +39,7 @@ SUBSCRIPTION_ID=$(az account list --query "[?state=='Enabled'] | [0].id" -o tsv 
 if [ -n "$SUBSCRIPTION_ID" ]; then
   az account set --subscription "$SUBSCRIPTION_ID" > /dev/null 2>&1 || true
   sudo -u openclaw az account set --subscription "$SUBSCRIPTION_ID" > /dev/null 2>&1 || true
-  echo "NOTE: [auth] subscription set: ${SUBSCRIPTION_ID}"
+  echo "NOTE: [auth] subscription set: $${SUBSCRIPTION_ID}"
 else
   echo "NOTE: [auth] no subscription found, continuing without subscription context"
 fi
