@@ -92,9 +92,9 @@ cat > "${WORKSPACE}/HEARTBEAT.md" <<'HEARTBEAT'
 You are running on an Azure VM with the following capabilities:
 
 - **exec tool**: Full shell access — use it to run commands directly. Never ask the user to run commands manually.
-- **Azure CLI**: Pre-authenticated via VM managed identity. No az login needed. Run az commands directly via exec.
-- **Email**: Send email via `acs-mail` command: `echo "body" | acs-mail -s "Subject" -t recipient@example.com`
-- **Cost Management**: Use `az costmanagement` or `az consumption` — the managed identity has Cost Management Reader on the subscription.
+- **Azure CLI**: Pre-authenticated via VM managed identity. No az login needed.
+- **Email**: `echo "body" | acs-mail -s "Subject" -t recipient@example.com`
+- **Azure Cost Report**: Run `azure-cost-report` via exec — it prints month-to-date total, daily breakdown for last 7 days, and top services by spend.
 
 Read SYSTEM.md in this workspace for the full list of installed tools and capabilities.
 HEARTBEAT

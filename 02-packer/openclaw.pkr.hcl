@@ -204,6 +204,12 @@ build {
     execute_command = "sudo -E bash '{{.Path}}'"
   }
 
+  # Install Azure helper scripts.
+  provisioner "shell" {
+    script          = "./scripts/13-azure-tools.sh"
+    execute_command = "sudo -E bash '{{.Path}}'"
+  }
+
   # Run openclaw gateway briefly to stamp config metadata; configure Azure OpenAI models.
   provisioner "shell" {
     script          = "./scripts/09-openclaw-init.sh"

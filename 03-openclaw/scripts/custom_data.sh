@@ -32,8 +32,8 @@ VAULT_NAME="${vault_name}"
 # ================================================================================
 
 echo "NOTE: [auth] logging in with managed identity"
-az login --identity --allow-no-subscriptions > /dev/null 2>&1
-sudo -u openclaw az login --identity --allow-no-subscriptions > /dev/null 2>&1
+az login --identity > /dev/null 2>&1
+sudo -u openclaw az login --identity > /dev/null 2>&1
 echo "NOTE: [auth] done"
 
 
