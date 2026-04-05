@@ -93,6 +93,7 @@ model_list:
 general_settings:
   master_key: "sk-openclaw"
   drop_params: true
+  set_verbose: true
 LITELLM
 chown openclaw:openclaw /opt/openclaw/litellm-config.yaml
 echo "NOTE: [litellm] config written"
@@ -201,10 +202,20 @@ fi
 
 echo "NOTE: [services] starting litellm"
 systemctl start litellm
-sleep 15
 
 echo "NOTE: [services] starting openclaw-gateway"
-systemctl start openclaw-gateway
+systemctl restart openclaw-gateway
+
+systemctl restart litellm
+echo "NOTE: [services] waiting for litellm to be ready"
+for i in $(seq 1 20); do
+  if curl -s http://localhost:4000/health > /dev/null 2>&1; then
+    echo "NOTE: [services] litellm ready after $((i * 3))s"
+    break
+  fi
+  echo "NOTE: [services] litellm not ready yet (attempt $i/20)..."
+  sleep 3
+done
 
 echo "NOTE: [services] done"
 
