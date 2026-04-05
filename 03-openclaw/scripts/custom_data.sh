@@ -32,8 +32,17 @@ VAULT_NAME="${vault_name}"
 # ================================================================================
 
 echo "NOTE: [auth] logging in with managed identity"
-az login --identity > /dev/null 2>&1
-sudo -u openclaw az login --identity > /dev/null 2>&1
+az login --identity --allow-no-subscriptions > /dev/null 2>&1
+sudo -u openclaw az login --identity --allow-no-subscriptions > /dev/null 2>&1
+
+SUBSCRIPTION_ID=$(az account list --query "[?state=='Enabled'] | [0].id" -o tsv 2>/dev/null || true)
+if [ -n "$SUBSCRIPTION_ID" ]; then
+  az account set --subscription "$SUBSCRIPTION_ID" > /dev/null 2>&1 || true
+  sudo -u openclaw az account set --subscription "$SUBSCRIPTION_ID" > /dev/null 2>&1 || true
+  echo "NOTE: [auth] subscription set: ${SUBSCRIPTION_ID}"
+else
+  echo "NOTE: [auth] no subscription found, continuing without subscription context"
+fi
 echo "NOTE: [auth] done"
 
 
