@@ -80,7 +80,6 @@ model_list:
       api_base: $${OPENAI_ENDPOINT}
       api_version: "$${OPENAI_API_VERSION}"
       api_key: $${OPENAI_API_KEY}
-      use_responses_api: false
 
   - model_name: gpt-4o-mini
     litellm_params:
@@ -88,7 +87,6 @@ model_list:
       api_base: $${OPENAI_ENDPOINT}
       api_version: "$${OPENAI_API_VERSION}"
       api_key: $${OPENAI_API_KEY}
-      use_responses_api: false
 
 general_settings:
   master_key: "sk-openclaw"

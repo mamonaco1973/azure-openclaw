@@ -31,7 +31,6 @@ model_list:
       api_base: https://placeholder.openai.azure.com/
       api_version: "2025-03-01-preview"
       api_key: sk-placeholder
-      use_responses_api: false
 
   - model_name: gpt-4o-mini
     litellm_params:
@@ -39,7 +38,6 @@ model_list:
       api_base: https://placeholder.openai.azure.com/
       api_version: "2025-03-01-preview"
       api_key: sk-placeholder
-      use_responses_api: false
 
 general_settings:
   master_key: "sk-openclaw"
