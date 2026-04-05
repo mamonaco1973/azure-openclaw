@@ -79,14 +79,14 @@ cd 02-packer || {
   exit 1
 }
 
-packer init ./openclaw.pkr.hcl
-packer build \
-  -var "client_id=${ARM_CLIENT_ID}" \
-  -var "client_secret=${ARM_CLIENT_SECRET}" \
-  -var "subscription_id=${ARM_SUBSCRIPTION_ID}" \
-  -var "tenant_id=${ARM_TENANT_ID}" \
-  -var "resource_group=openclaw-project-rg" \
-  ./openclaw.pkr.hcl
+# packer init ./openclaw.pkr.hcl
+# packer build \
+#   -var "client_id=${ARM_CLIENT_ID}" \
+#   -var "client_secret=${ARM_CLIENT_SECRET}" \
+#   -var "subscription_id=${ARM_SUBSCRIPTION_ID}" \
+#   -var "tenant_id=${ARM_TENANT_ID}" \
+#   -var "resource_group=openclaw-project-rg" \
+#   ./openclaw.pkr.hcl
 
 cd ..
 
