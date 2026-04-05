@@ -162,7 +162,7 @@ Config is at /opt/openclaw/email-config.json if email is enabled.
 
 SYSTEM
 
-chown -R openclaw:openclaw /home/openclaw/.openclaw/agents
+chown -R openclaw:openclaw /home/openclaw/.openclaw
 
 echo "NOTE: [openclaw-init] appending SYSTEM.md reference to BOOTSTRAP.md"
 BOOTSTRAP="${WORKSPACE}/BOOTSTRAP.md"
