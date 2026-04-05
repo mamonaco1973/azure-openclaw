@@ -201,6 +201,7 @@ fi
 
 echo "NOTE: [services] starting litellm"
 systemctl start litellm
+sleep 15
 
 echo "NOTE: [services] starting openclaw-gateway"
 systemctl start openclaw-gateway
