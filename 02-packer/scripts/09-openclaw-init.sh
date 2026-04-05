@@ -67,7 +67,7 @@ sudo -u openclaw env HOME=/home/openclaw PATH="${PATH}" bash -c "
   ${OPENCLAW_BIN} config set gateway.mode local || true
   ${OPENCLAW_BIN} config set gateway.auth.mode none || true
   ${OPENCLAW_BIN} config set models.providers.litellm \
-    '{\"baseUrl\":\"http://localhost:4000\",\"apiKey\":\"sk-openclaw\",\"models\":[{\"id\":\"gpt-4o\",\"name\":\"GPT-4o (Azure OpenAI)\"},{\"id\":\"gpt-4o-mini\",\"name\":\"GPT-4o Mini (Azure OpenAI)\"}]}' \
+    '{\"baseUrl\":\"http://localhost:4000\",\"apiKey\":\"sk-openclaw\",\"models\":[{\"id\":\"gpt-4o\",\"name\":\"GPT-4o (Azure AI Foundry)\"},{\"id\":\"gpt-4o-mini\",\"name\":\"GPT-4o Mini (Azure AI Foundry)\"}]}' \
     --strict-json || true
   ${OPENCLAW_BIN} models set litellm/gpt-4o-mini || true
   ${OPENCLAW_BIN} models set litellm/gpt-4o || true
@@ -82,20 +82,22 @@ sleep 3
 pkill -9 -u openclaw 2>/dev/null || true
 rm -f /tmp/openclaw-init.pid
 
-echo "NOTE: [openclaw-init] writing CLAUDE.md to workspace"
+echo "NOTE: [openclaw-init] writing workspace files"
 WORKSPACE=/home/openclaw/.openclaw/workspace
 mkdir -p "${WORKSPACE}"
-cat > "${WORKSPACE}/CLAUDE.md" <<'CLAUDE'
-You have full exec access via the exec tool. The Azure CLI is installed and
-pre-authenticated via the VM managed identity — no credentials needed. Use
-exec to run Azure CLI commands directly to complete any Azure task.
 
-To send email use the acs-mail command via exec (if email is configured):
-  echo "Message body" | acs-mail -s "Subject" -t recipient@example.com
+cat > "${WORKSPACE}/HEARTBEAT.md" <<'HEARTBEAT'
+# System Context
 
-Never tell the user to do something manually that you can do yourself via exec.
-CLAUDE
+You are running on an Azure VM with the following capabilities:
 
+- **exec tool**: Full shell access — use it to run commands directly. Never ask the user to run commands manually.
+- **Azure CLI**: Pre-authenticated via VM managed identity. No az login needed. Run az commands directly via exec.
+- **Email**: Send email via `acs-mail` command: `echo "body" | acs-mail -s "Subject" -t recipient@example.com`
+- **Cost Management**: Use `az costmanagement` or `az consumption` — the managed identity has Cost Management Reader on the subscription.
+
+Read SYSTEM.md in this workspace for the full list of installed tools and capabilities.
+HEARTBEAT
 echo "NOTE: [openclaw-init] writing SYSTEM.md to workspace"
 cat > "${WORKSPACE}/SYSTEM.md" <<'SYSTEM'
 # System Capabilities
@@ -103,8 +105,8 @@ cat > "${WORKSPACE}/SYSTEM.md" <<'SYSTEM'
 This instance has the following tools and capabilities available via exec.
 
 ## AI Models (via LiteLLM on port 4000)
-- **gpt-4o** — GPT-4o via Azure OpenAI (primary model)
-- **gpt-4o-mini** — GPT-4o Mini via Azure OpenAI (fast/cost-efficient)
+- **gpt-4o** — GPT-4o via Azure AI Foundry (primary model)
+- **gpt-4o-mini** — GPT-4o Mini via Azure AI Foundry (fast/cost-efficient)
 
 ## Email
 If Azure Communication Services is configured, use the `acs-mail` command:
@@ -160,7 +162,7 @@ Config is at /opt/openclaw/email-config.json if email is enabled.
 
 SYSTEM
 
-chown -R openclaw:openclaw "${WORKSPACE}"
+chown -R openclaw:openclaw /home/openclaw/.openclaw/agents
 
 echo "NOTE: [openclaw-init] appending SYSTEM.md reference to BOOTSTRAP.md"
 BOOTSTRAP="${WORKSPACE}/BOOTSTRAP.md"

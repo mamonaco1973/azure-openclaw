@@ -46,7 +46,7 @@ resource "azurerm_cognitive_deployment" "gpt4o" {
 
   sku {
     name     = "GlobalStandard"
-    capacity = 30
+    capacity = 100
   }
 }
 
@@ -65,7 +65,7 @@ resource "azurerm_cognitive_deployment" "gpt4o_mini" {
 
   sku {
     name     = "GlobalStandard"
-    capacity = 30
+    capacity = 100
   }
 }
 

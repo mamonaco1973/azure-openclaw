@@ -33,6 +33,7 @@ VAULT_NAME="${vault_name}"
 
 echo "NOTE: [auth] logging in with managed identity"
 az login --identity --allow-no-subscriptions > /dev/null 2>&1
+sudo -u openclaw az login --identity --allow-no-subscriptions > /dev/null 2>&1
 echo "NOTE: [auth] done"
 
 
@@ -93,6 +94,7 @@ model_list:
 general_settings:
   master_key: "sk-openclaw"
   drop_params: true
+  max_tokens: 4096
   set_verbose: true
 LITELLM
 chown openclaw:openclaw /opt/openclaw/litellm-config.yaml
