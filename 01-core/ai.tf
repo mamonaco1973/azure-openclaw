@@ -48,6 +48,8 @@ resource "azurerm_cognitive_deployment" "gpt4o" {
     name     = "GlobalStandard"
     capacity = 100
   }
+
+  rai_policy_name = "Microsoft.DefaultV2"
 }
 
 # ------------------------------------------------------------------------------
@@ -67,6 +69,8 @@ resource "azurerm_cognitive_deployment" "gpt4o_mini" {
     name     = "GlobalStandard"
     capacity = 100
   }
+
+  rai_policy_name = "Microsoft.DefaultV2"
 }
 
 # ------------------------------------------------------------------------------
