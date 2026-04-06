@@ -25,16 +25,30 @@ echo "NOTE: [openclaw-init] writing placeholder litellm config"
 mkdir -p /opt/openclaw
 cat > /opt/openclaw/litellm-config.yaml <<'LITELLM'
 model_list:
-  - model_name: gpt-4o
+  - model_name: gpt-4.1
     litellm_params:
-      model: azure/gpt-4o
+      model: azure/gpt-4.1
       api_base: https://placeholder.openai.azure.com/
       api_version: "2025-03-01-preview"
       api_key: sk-placeholder
 
-  - model_name: gpt-4o-mini
+  - model_name: gpt-4.1-nano
     litellm_params:
-      model: azure/gpt-4o-mini
+      model: azure/gpt-4.1-nano
+      api_base: https://placeholder.openai.azure.com/
+      api_version: "2025-03-01-preview"
+      api_key: sk-placeholder
+
+  - model_name: gpt-5
+    litellm_params:
+      model: azure/gpt-5
+      api_base: https://placeholder.openai.azure.com/
+      api_version: "2025-03-01-preview"
+      api_key: sk-placeholder
+
+  - model_name: gpt-5-mini
+    litellm_params:
+      model: azure/gpt-5-mini
       api_base: https://placeholder.openai.azure.com/
       api_version: "2025-03-01-preview"
       api_key: sk-placeholder
@@ -70,11 +84,13 @@ sudo -u openclaw env HOME=/home/openclaw PATH="${PATH}" bash -c "
   ${OPENCLAW_BIN} config set gateway.mode local || true
   ${OPENCLAW_BIN} config set gateway.auth.mode none || true
   ${OPENCLAW_BIN} config set models.providers.litellm \
-    '{\"baseUrl\":\"http://localhost:4000\",\"apiKey\":\"sk-openclaw\",\"api\":\"azure-openai-responses\",\"models\":[{\"id\":\"gpt-4o\",\"name\":\"GPT-4o (Azure AI Foundry)\",\"api\":\"azure-openai-responses\"},{\"id\":\"gpt-4o-mini\",\"name\":\"GPT-4o Mini (Azure AI Foundry)\",\"api\":\"azure-openai-responses\"}]}' \
+    '{\"baseUrl\":\"http://localhost:4000\",\"apiKey\":\"sk-openclaw\",\"api\":\"azure-openai-responses\",\"models\":[{\"id\":\"gpt-4.1\",\"name\":\"GPT-4.1\",\"api\":\"azure-openai-responses\"},{\"id\":\"gpt-4.1-nano\",\"name\":\"GPT-4.1 Nano\",\"api\":\"azure-openai-responses\"},{\"id\":\"gpt-5\",\"name\":\"GPT-5\",\"api\":\"azure-openai-responses\"},{\"id\":\"gpt-5-mini\",\"name\":\"GPT-5 Mini\",\"api\":\"azure-openai-responses\"}]}' \
     --strict-json || true
-  ${OPENCLAW_BIN} models set litellm/gpt-4o-mini || true
-  ${OPENCLAW_BIN} models set litellm/gpt-4o || true
-  ${OPENCLAW_BIN} config set agents.defaults.model.primary litellm/gpt-4o || true
+  ${OPENCLAW_BIN} models set litellm/gpt-4.1 || true
+  ${OPENCLAW_BIN} models set litellm/gpt-4.1-nano || true
+  ${OPENCLAW_BIN} models set litellm/gpt-5 || true
+  ${OPENCLAW_BIN} models set litellm/gpt-5-mini || true
+  ${OPENCLAW_BIN} config set agents.defaults.model.primary litellm/gpt-4.1 || true
   ${OPENCLAW_BIN} approvals allowlist add --agent '*' '/**' || true
   ${OPENCLAW_BIN} approvals allowlist add --agent 'main' '/**' || true
 "
@@ -108,8 +124,10 @@ cat > "${WORKSPACE}/SYSTEM.md" <<'SYSTEM'
 This instance has the following tools and capabilities available via exec.
 
 ## AI Models (via LiteLLM on port 4000)
-- **gpt-4o** — GPT-4o via Azure AI Foundry (primary model)
-- **gpt-4o-mini** — GPT-4o Mini via Azure AI Foundry (fast/cost-efficient)
+- **gpt-4.1** — GPT-4.1 via Azure OpenAI (primary model)
+- **gpt-4.1-nano** — GPT-4.1 Nano via Azure OpenAI (fast/cost-efficient)
+- **gpt-5** — GPT-5 via Azure OpenAI (most capable)
+- **gpt-5-mini** — GPT-5 Mini via Azure OpenAI (capable/cost-efficient)
 
 ## Email
 If Azure Communication Services is configured, use the `acs-mail` command:

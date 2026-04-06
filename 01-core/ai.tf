@@ -3,9 +3,11 @@
 # ================================================================================
 #
 # Purpose:
-#   Deploy Azure OpenAI Service with two model deployments:
-#     - gpt-4o      (primary capable model — analogous to Claude Sonnet)
-#     - gpt-4o-mini (fast/cost-efficient model — analogous to Claude Haiku)
+#   Deploy Azure OpenAI Service with four model deployments:
+#     - gpt-4.1       (primary agentic model)
+#     - gpt-4.1-nano  (fast / cost-efficient)
+#     - gpt-5         (most capable)
+#     - gpt-5-mini    (capable / cost-efficient)
 #
 #   The API key and endpoint are stored in Key Vault as openclaw-openai-config
 #   so the VM can retrieve them at boot via managed identity.
@@ -32,16 +34,16 @@ resource "azurerm_cognitive_account" "openai" {
 }
 
 # ------------------------------------------------------------------------------
-# GPT-4o deployment — primary capable model
+# GPT-4.1 deployment — primary agentic model
 # ------------------------------------------------------------------------------
-resource "azurerm_cognitive_deployment" "gpt4o" {
-  name                 = "gpt-4o"
+resource "azurerm_cognitive_deployment" "gpt41" {
+  name                 = "gpt-4.1"
   cognitive_account_id = azurerm_cognitive_account.openai.id
 
   model {
     format  = "OpenAI"
-    name    = "gpt-4o"
-    version = "2024-11-20"
+    name    = "gpt-4.1"
+    version = "2025-04-14"
   }
 
   sku {
@@ -53,16 +55,58 @@ resource "azurerm_cognitive_deployment" "gpt4o" {
 }
 
 # ------------------------------------------------------------------------------
-# GPT-4o Mini deployment — fast / cost-efficient model
+# GPT-4.1 Nano deployment — fast / cost-efficient
 # ------------------------------------------------------------------------------
-resource "azurerm_cognitive_deployment" "gpt4o_mini" {
-  name                 = "gpt-4o-mini"
+resource "azurerm_cognitive_deployment" "gpt41_nano" {
+  name                 = "gpt-4.1-nano"
   cognitive_account_id = azurerm_cognitive_account.openai.id
 
   model {
     format  = "OpenAI"
-    name    = "gpt-4o-mini"
-    version = "2024-07-18"
+    name    = "gpt-4.1-nano"
+    version = "2025-04-14"
+  }
+
+  sku {
+    name     = "GlobalStandard"
+    capacity = 100
+  }
+
+  rai_policy_name = "Microsoft.DefaultV2"
+}
+
+# ------------------------------------------------------------------------------
+# GPT-5 deployment — most capable model
+# ------------------------------------------------------------------------------
+resource "azurerm_cognitive_deployment" "gpt5" {
+  name                 = "gpt-5"
+  cognitive_account_id = azurerm_cognitive_account.openai.id
+
+  model {
+    format  = "OpenAI"
+    name    = "gpt-5"
+    version = "2025-08-07"
+  }
+
+  sku {
+    name     = "GlobalStandard"
+    capacity = 100
+  }
+
+  rai_policy_name = "Microsoft.DefaultV2"
+}
+
+# ------------------------------------------------------------------------------
+# GPT-5 Mini deployment — capable / cost-efficient
+# ------------------------------------------------------------------------------
+resource "azurerm_cognitive_deployment" "gpt5_mini" {
+  name                 = "gpt-5-mini"
+  cognitive_account_id = azurerm_cognitive_account.openai.id
+
+  model {
+    format  = "OpenAI"
+    name    = "gpt-5-mini"
+    version = "2025-08-07"
   }
 
   sku {
@@ -83,11 +127,13 @@ resource "azurerm_key_vault_secret" "openai_config" {
   content_type = "application/json"
 
   value = jsonencode({
-    endpoint          = azurerm_cognitive_account.openai.endpoint
-    api_key           = azurerm_cognitive_account.openai.primary_access_key
-    api_version       = "2025-03-01-preview"
-    gpt4o_deployment      = azurerm_cognitive_deployment.gpt4o.name
-    gpt4o_mini_deployment = azurerm_cognitive_deployment.gpt4o_mini.name
+    endpoint              = azurerm_cognitive_account.openai.endpoint
+    api_key               = azurerm_cognitive_account.openai.primary_access_key
+    api_version           = "2025-03-01-preview"
+    gpt41_deployment      = azurerm_cognitive_deployment.gpt41.name
+    gpt41_nano_deployment = azurerm_cognitive_deployment.gpt41_nano.name
+    gpt5_deployment       = azurerm_cognitive_deployment.gpt5.name
+    gpt5_mini_deployment  = azurerm_cognitive_deployment.gpt5_mini.name
   })
 
   depends_on = [azurerm_role_assignment.kv_secrets_officer]

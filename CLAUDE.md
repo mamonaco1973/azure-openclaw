@@ -38,7 +38,7 @@ GPT-4o (primary) and GPT-4o Mini.
 | LiteLLM port | `4000` |
 | LiteLLM master key | `sk-openclaw` |
 | OpenClaw gateway port | `18789` (loopback only) |
-| Azure OpenAI models | `gpt-4o`, `gpt-4o-mini` |
+| Azure OpenAI models | `gpt-4.1`, `gpt-4.1-nano`, `gpt-5`, `gpt-5-mini` |
 | Linux user | `openclaw` (sudo, NOPASSWD) |
 | Password source | Azure Key Vault secret `openclaw-credentials` |
 
@@ -106,8 +106,10 @@ Two deployments created in `01-core/ai.tf`:
 
 | Model Name | Deployment | Purpose |
 |---|---|---|
-| `gpt-4o` | `gpt-4o` | Primary capable model |
-| `gpt-4o-mini` | `gpt-4o-mini` | Fast / cost-efficient model |
+| `gpt-4.1` | `gpt-4.1` | Primary agentic model |
+| `gpt-4.1-nano` | `gpt-4.1-nano` | Fast / cost-efficient |
+| `gpt-5` | `gpt-5` | Most capable |
+| `gpt-5-mini` | `gpt-5-mini` | Capable / cost-efficient |
 
 LiteLLM routes to Azure OpenAI using the API key stored in Key Vault.
 
