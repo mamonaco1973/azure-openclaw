@@ -89,6 +89,7 @@ Builds `openclaw_image` from Ubuntu 24.04 (azure-arm, fully self-contained):
 | `10-services.sh` | Installs and enables `litellm.service` + `openclaw-gateway.service` |
 | `11-python-tools.sh` | Python packages + system utilities + azure-communication-email |
 | `12-onlyoffice.sh` | OnlyOffice Desktop Editors |
+| `13-azure-tools.sh` | `azure-cost-report` and `send-cost-report` helper scripts |
 
 ## What custom_data.sh Does
 

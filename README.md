@@ -388,6 +388,7 @@ The managed image is built from Ubuntu 24.04 using the following scripts in orde
 | `10-services.sh` | Installs and enables systemd service units; sets up desktop icons and symlinks |
 | `11-python-tools.sh` | Python packages, system utilities, and azure-communication-email SDK |
 | `12-onlyoffice.sh` | OnlyOffice Desktop Editors |
+| `13-azure-tools.sh` | `azure-cost-report` and `send-cost-report` helper scripts |
 
 ---
 
