@@ -31,7 +31,7 @@ data "azurerm_client_config" "current" {}
 # Resource groups created by 01-core
 # ------------------------------------------------------------------------------
 data "azurerm_resource_group" "network" {
-  name = "openclaw-network-rg"
+  name = "openclaw-core-rg"
 }
 
 data "azurerm_resource_group" "project" {

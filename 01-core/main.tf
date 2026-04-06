@@ -5,7 +5,7 @@
 # Purpose:
 #   Configure the AzureRM provider and create the two resource groups used
 #   throughout the OpenClaw deployment:
-#     - openclaw-network-rg: VNet, NSG, NAT gateway, Key Vault, AI services
+#     - openclaw-core-rg: VNet, NSG, NAT gateway, Key Vault, AI services
 #     - openclaw-project-rg: Managed images, VM
 #
 # ================================================================================
@@ -32,7 +32,7 @@ data "azurerm_client_config" "current" {}
 # Resource group: networking, Key Vault, AI, email
 # ------------------------------------------------------------------------------
 resource "azurerm_resource_group" "network" {
-  name     = "openclaw-network-rg"
+  name     = "openclaw-core-rg"
   location = var.location
 }
 

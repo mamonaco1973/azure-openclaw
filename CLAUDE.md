@@ -62,7 +62,7 @@ GPT-4o (primary) and GPT-4o Mini.
 
 ```bash
 VAULT=$(az keyvault list \
-  --resource-group openclaw-network-rg \
+  --resource-group openclaw-core-rg \
   --query "[0].name" --output tsv)
 
 az keyvault secret show \

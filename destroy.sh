@@ -32,7 +32,7 @@ set -euo pipefail
 # ================================================================================
 
 VAULT_NAME=$(az keyvault list \
-  --resource-group openclaw-network-rg \
+  --resource-group openclaw-core-rg \
   --query "[?starts_with(name, 'openclaw-vault')].name | [0]" \
   --output tsv 2>/dev/null || true)
 

@@ -182,7 +182,7 @@ To tear down all resources:
 When the deployment completes, the following resources are created:
 
 - **Networking (01-core):**
-  - Resource groups `openclaw-network-rg` and `openclaw-project-rg`
+  - Resource groups `openclaw-core-rg` and `openclaw-project-rg`
   - VNet `openclaw-vnet` with CIDR `10.0.0.0/23`
   - Subnet `vm-subnet` (10.0.0.0/25) with NSG allowing RDP inbound
   - NAT gateway for stable outbound internet access
@@ -278,7 +278,7 @@ Password: (retrieved below)
 
 ```bash
 VAULT=$(az keyvault list \
-  --resource-group openclaw-network-rg \
+  --resource-group openclaw-core-rg \
   --query "[0].name" --output tsv)
 
 az keyvault secret show \
