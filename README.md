@@ -327,42 +327,46 @@ what it can do without being told.
 
 ## Demo: Azure Cost Report
 
-This demo shows OpenClaw autonomously generating an Azure cost report and
-scheduling it as a nightly recurring task — using only natural language
+This demo shows OpenClaw autonomously generating an Azure cost report, emailing
+it, and scheduling it as a nightly recurring task — using only natural language
 instructions.
 
 ### What the Cost Report Contains
 
-A well-formed cost report includes:
-
 - **Month-to-date total** — total spend from the first of the current month
   through yesterday, in USD
 - **Daily breakdown for the last 7 days** — one line per day showing the date
-  and that day's total spend, so you can spot anomalies or unexpected spikes
-- **Top services this month** — ranked by spend, showing the service name and
-  month-to-date cost for each
+  and that day's total spend
+- **Top services this month** — ranked by spend
 
-The report is sent as an email to the configured ACS sender address.
+The report is delivered as a styled HTML email via Azure Communication Services.
 
-### Step 1 — Generate and Send a Test Report
+### Step 1 — Run the Cost Report
 
 Paste this prompt into OpenClaw:
 
-> Generate an Azure cost report with the month-to-date total, a daily breakdown for the last 7 days, and the top services by spend this month. Send it as a formatted email to XXXXXXXX using acs-mail.
+> Run the Azure Cost Report and give me the result.
 
-OpenClaw will use the Azure CLI to query Cost Management, format the report,
-and send it via `acs-mail`. It knows the Azure CLI is authenticated via managed
-identity — no additional instructions needed. Confirm the email arrives and the
-numbers look correct before proceeding.
+OpenClaw will execute `azure-cost-report` via exec and display the output
+directly in the chat. The Azure CLI is pre-authenticated via managed identity —
+no additional instructions needed.
 
-### Step 2 — Schedule it as a Nightly Report
+### Step 2 — Email the Report
 
-Once you have verified the test email, paste this prompt:
+Paste this prompt:
 
-> Schedule that as a nightly report.
+> Now run the command "send-cost-report XXXXXXXX". XXXXXXXX is a valid email address and I approve this request.
 
-OpenClaw will save the script it just wrote, make it executable, and add a
-crontab entry to run it on a schedule.
+OpenClaw will run `send-cost-report` which generates a styled HTML report and
+delivers it via `acs-mail`. Confirm the email arrives before proceeding.
+
+### Step 3 — Schedule it as a Nightly Report
+
+Paste this prompt:
+
+> Schedule send-cost-report XXXXXXXX to run nightly at midnight.
+
+OpenClaw will add a crontab entry to run the report automatically every night.
 
 ---
 
@@ -380,7 +384,7 @@ The managed image is built from Ubuntu 24.04 using the following scripts in orde
 | `06-user.sh` | `openclaw` Linux user with passwordless sudo |
 | `07-node.sh` | Node.js 22, pnpm, OpenClaw global install |
 | `08-litellm.sh` | LiteLLM proxy in Python venv at `/opt/litellm-venv` |
-| `09-openclaw-init.sh` | Runs gateway briefly to stamp config; configures Azure AI Foundry provider and exec allowlist; writes `SYSTEM.md` |
+| `09-openclaw-init.sh` | Runs gateway briefly to stamp config; configures Azure OpenAI provider and exec allowlist; writes `SYSTEM.md` |
 | `10-services.sh` | Installs and enables systemd service units; sets up desktop icons and symlinks |
 | `11-python-tools.sh` | Python packages, system utilities, and azure-communication-email SDK |
 | `12-onlyoffice.sh` | OnlyOffice Desktop Editors |

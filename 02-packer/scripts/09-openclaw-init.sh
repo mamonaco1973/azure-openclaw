@@ -39,19 +39,7 @@ model_list:
       api_version: "2025-03-01-preview"
       api_key: sk-placeholder
 
-  - model_name: gpt-5
-    litellm_params:
-      model: azure/gpt-5
-      api_base: https://placeholder.openai.azure.com/
-      api_version: "2025-03-01-preview"
-      api_key: sk-placeholder
 
-  - model_name: gpt-5-mini
-    litellm_params:
-      model: azure/gpt-5-mini
-      api_base: https://placeholder.openai.azure.com/
-      api_version: "2025-03-01-preview"
-      api_key: sk-placeholder
 
 litellm_settings:
   drop_params: true
@@ -84,12 +72,10 @@ sudo -u openclaw env HOME=/home/openclaw PATH="${PATH}" bash -c "
   ${OPENCLAW_BIN} config set gateway.mode local || true
   ${OPENCLAW_BIN} config set gateway.auth.mode none || true
   ${OPENCLAW_BIN} config set models.providers.litellm \
-    '{\"baseUrl\":\"http://localhost:4000\",\"apiKey\":\"sk-openclaw\",\"api\":\"azure-openai-responses\",\"models\":[{\"id\":\"gpt-4.1\",\"name\":\"GPT-4.1\",\"api\":\"azure-openai-responses\"},{\"id\":\"gpt-4.1-nano\",\"name\":\"GPT-4.1 Nano\",\"api\":\"azure-openai-responses\"},{\"id\":\"gpt-5\",\"name\":\"GPT-5\",\"api\":\"azure-openai-responses\"},{\"id\":\"gpt-5-mini\",\"name\":\"GPT-5 Mini\",\"api\":\"azure-openai-responses\"}]}' \
+    '{\"baseUrl\":\"http://localhost:4000\",\"apiKey\":\"sk-openclaw\",\"api\":\"azure-openai-responses\",\"models\":[{\"id\":\"gpt-4.1\",\"name\":\"GPT-4.1\",\"api\":\"azure-openai-responses\"},{\"id\":\"gpt-4.1-nano\",\"name\":\"GPT-4.1 Nano\",\"api\":\"azure-openai-responses\"}]}' \
     --strict-json || true
   ${OPENCLAW_BIN} models set litellm/gpt-4.1 || true
   ${OPENCLAW_BIN} models set litellm/gpt-4.1-nano || true
-  ${OPENCLAW_BIN} models set litellm/gpt-5 || true
-  ${OPENCLAW_BIN} models set litellm/gpt-5-mini || true
   ${OPENCLAW_BIN} config set agents.defaults.model.primary litellm/gpt-4.1 || true
   ${OPENCLAW_BIN} approvals allowlist add --agent '*' '/**' || true
   ${OPENCLAW_BIN} approvals allowlist add --agent 'main' '/**' || true
@@ -114,6 +100,7 @@ You are running on an Azure VM with the following capabilities:
 - **Azure CLI**: Pre-authenticated via VM managed identity. No az login needed.
 - **Email**: `echo "body" | acs-mail -s "Subject" -t recipient@example.com`
 - **Azure Cost Report**: Run `azure-cost-report` via exec — it prints month-to-date total, daily breakdown for last 7 days, and top services by spend.
+- **Send Cost Report**: Run `send-cost-report <email>` via exec — generates an HTML cost report and emails it via ACS. Example: `send-cost-report user@example.com`
 
 Read SYSTEM.md in this workspace for the full list of installed tools and capabilities.
 HEARTBEAT

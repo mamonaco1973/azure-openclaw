@@ -80,8 +80,6 @@ OPENAI_API_KEY=$(echo "$openai_config" | jq -r '.api_key')
 OPENAI_API_VERSION=$(echo "$openai_config" | jq -r '.api_version')
 GPT41_DEPLOYMENT=$(echo "$openai_config" | jq -r '.gpt41_deployment')
 GPT41_NANO_DEPLOYMENT=$(echo "$openai_config" | jq -r '.gpt41_nano_deployment')
-GPT5_DEPLOYMENT=$(echo "$openai_config" | jq -r '.gpt5_deployment')
-GPT5_MINI_DEPLOYMENT=$(echo "$openai_config" | jq -r '.gpt5_mini_deployment')
 
 echo "NOTE: [litellm] writing config"
 cat > /opt/openclaw/litellm-config.yaml <<LITELLM
@@ -96,20 +94,6 @@ model_list:
   - model_name: gpt-4.1-nano
     litellm_params:
       model: azure/$${GPT41_NANO_DEPLOYMENT}
-      api_base: $${OPENAI_ENDPOINT}
-      api_version: "$${OPENAI_API_VERSION}"
-      api_key: $${OPENAI_API_KEY}
-
-  - model_name: gpt-5
-    litellm_params:
-      model: azure/$${GPT5_DEPLOYMENT}
-      api_base: $${OPENAI_ENDPOINT}
-      api_version: "$${OPENAI_API_VERSION}"
-      api_key: $${OPENAI_API_KEY}
-
-  - model_name: gpt-5-mini
-    litellm_params:
-      model: azure/$${GPT5_MINI_DEPLOYMENT}
       api_base: $${OPENAI_ENDPOINT}
       api_version: "$${OPENAI_API_VERSION}"
       api_key: $${OPENAI_API_KEY}
