@@ -1,8 +1,8 @@
-# AI Agent Workstation on Azure with OpenClaw, LiteLLM, and Azure AI Foundry
+# AI Agent Workstation on Azure with OpenClaw, LiteLLM, and Azure OpenAI
 
 This project delivers a fully automated **AI agent workstation** on Azure, built
 using **Terraform**, **Packer**, and **OpenClaw** — an agentic coding and task
-automation platform backed by **Azure AI Foundry** models via a **LiteLLM proxy**.
+automation platform backed by **Azure OpenAI** models via a **LiteLLM proxy**.
 
 It provisions an **Ubuntu 24.04 Azure VM** with a full **LXQt desktop
 environment** accessible over **RDP**, pre-loaded with developer tooling, cloud
@@ -16,8 +16,8 @@ credentials to manage, no keys to rotate.
 
 ![openclaw](openclaw.png)
 
-OpenClaw is backed by two **Azure AI Foundry** models available for selection at
-runtime: **GPT-4o** and **GPT-4o Mini** — both routed through a locally running
+OpenClaw is backed by two **Azure OpenAI** models available for selection at
+runtime: **GPT-4.1** and **GPT-4.1 Nano** — both routed through a locally running
 **LiteLLM proxy** so the agent works with either model without configuration
 changes.
 
@@ -34,11 +34,11 @@ manual setup.
    and task agent. It can write and execute code, browse the web, manipulate
    files, call Azure APIs, and send email — all driven by natural language
    instructions.
-2. **Azure AI Foundry Model Integration** — Two models (GPT-4o and GPT-4o Mini)
+2. **Azure OpenAI Model Integration** — Two models (GPT-4.1 and GPT-4.1 Nano)
    are available via LiteLLM proxy running on loopback. Model selection requires
    no code changes — switch at any time in the OpenClaw UI.
 3. **Fully Automated Provisioning** — A single `apply.sh` command provisions
-   the VNet, Key Vault, Azure AI Foundry deployments, builds the managed image with
+   the VNet, Key Vault, Azure OpenAI deployments, builds the managed image with
    Packer, and deploys the VM with Terraform.
 4. **Zero Credential Management** — The VM authenticates to Key Vault and Azure
    services through its system-assigned managed identity. No access keys are
@@ -62,7 +62,7 @@ manual setup.
 
 The deployment spans three Terraform phases backed by a Packer managed image
 build. **01-core** establishes the network foundation — a VNet with a VM subnet
-and NAT gateway for egress — and creates the Azure Key Vault, the Azure AI Foundry
+and NAT gateway for egress — and creates the Azure Key Vault, the Azure OpenAI
 account with both model deployments, and the Azure Communication Services email
 resource. Secrets (OpenAI config, email connection string) are stored in Key
 Vault immediately after creation. **02-packer** builds the `openclaw_image` from
@@ -74,7 +74,7 @@ wire everything together.
 
 At runtime, the user connects via RDP to the LXQt desktop and opens OpenClaw
 in Chrome. Prompts flow from the OpenClaw gateway to the LiteLLM proxy running
-on loopback, which routes model requests to Azure AI Foundry using the API key
+on loopback, which routes model requests to Azure OpenAI using the API key
 retrieved from Key Vault at boot. The managed identity handles all Azure
 authentication throughout — no access keys ever touch the filesystem. Outbound
 email routes through Azure Communication Services using the connection string
@@ -94,7 +94,7 @@ that `custom_data.sh` pulls from Key Vault on first boot.
 | OpenClaw gateway port | `18789` (loopback) |
 | Linux user | `openclaw` |
 | Password source | Key Vault secret `openclaw-credentials` |
-| AI models | `gpt-4o`, `gpt-4o-mini` (Azure AI Foundry) |
+| AI models | `gpt-4.1`, `gpt-4.1-nano` (Azure OpenAI) |
 
 ---
 
@@ -118,7 +118,7 @@ export ARM_SUBSCRIPTION_ID="<your-subscription-id>"
 export ARM_TENANT_ID="<your-tenant-id>"
 ```
 
-> **Azure AI Foundry Access:** Azure AI Foundry (`AIServices` kind) is available
+> **Azure OpenAI Access:** Azure OpenAI (`AIServices` kind) is available
 > to most Azure subscriptions without a separate access request. Ensure the
 > `Microsoft.CognitiveServices` provider is registered in your subscription —
 > `check_env.sh` handles this automatically.
@@ -158,7 +158,7 @@ Initializing the backend...
 
 1. Runs `check_env.sh` to validate required CLI tools, ARM_* environment
    variables, and Azure login
-2. Deploys `01-core` — VNet, Key Vault, Azure AI Foundry (gpt-4o + gpt-4o-mini),
+2. Deploys `01-core` — VNet, Key Vault, Azure OpenAI (gpt-4.1 + gpt-4.1-nano),
    Azure Communication Services email
 3. Captures the Key Vault name from Terraform outputs
 4. Runs `packer build` against `02-packer/openclaw.pkr.hcl` to produce
@@ -194,13 +194,13 @@ When the deployment completes, the following resources are created:
   - Secrets: `openclaw-openai-config`, `openclaw-email-config`
   - Secret `openclaw-credentials` added by `03-openclaw` at deploy time
 
-- **Azure AI Foundry (01-core):**
-  - Azure AI Foundry account (`AIServices` kind) with two deployments:
+- **Azure OpenAI (01-core):**
+  - Azure OpenAI account (`AIServices` kind) with two deployments:
 
     | Deployment | Model | Purpose |
     |---|---|---|
-    | `gpt-4o` | GPT-4o 2024-11-20 | Primary capable model |
-    | `gpt-4o-mini` | GPT-4o Mini 2024-07-18 | Fast / cost-efficient model |
+    | `gpt-4.1` | GPT-4.1 2025-04-14 | Primary agentic model |
+    | `gpt-4.1-nano` | GPT-4.1 Nano 2025-04-14 | Fast / cost-efficient model |
 
 - **Email (01-core):**
   - Azure Communication Services resource
@@ -247,7 +247,7 @@ When the deployment completes, the following resources are created:
     2. Reads `openclaw-credentials` from Key Vault and sets the `openclaw`
        Linux user password via `chpasswd`
     3. Reads `openclaw-openai-config` from Key Vault and writes
-       `/opt/openclaw/litellm-config.yaml` with the real Azure AI Foundry
+       `/opt/openclaw/litellm-config.yaml` with the real Azure OpenAI
        endpoint, API key, and deployment names
     4. Reads `openclaw-email-config` from Key Vault and installs the
        `acs-mail` wrapper with the ACS connection string
@@ -303,8 +303,8 @@ Click the model selector in the OpenClaw toolbar. Two models are available:
 
 | Model | Best for |
 |---|---|
-| **GPT-4o** | Complex reasoning, multi-step coding tasks, analysis |
-| **GPT-4o Mini** | Fast responses, simple tasks, iteration |
+| **GPT-4.1** | Complex reasoning, multi-step agentic tasks, analysis |
+| **GPT-4.1 Nano** | Fast responses, simple tasks, iteration |
 
 ### Agent Capabilities
 
