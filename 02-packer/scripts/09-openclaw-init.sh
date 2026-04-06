@@ -39,6 +39,9 @@ model_list:
       api_version: "2025-03-01-preview"
       api_key: sk-placeholder
 
+litellm_settings:
+  drop_params: true
+
 general_settings:
   master_key: "sk-openclaw"
   drop_params: true
@@ -67,7 +70,7 @@ sudo -u openclaw env HOME=/home/openclaw PATH="${PATH}" bash -c "
   ${OPENCLAW_BIN} config set gateway.mode local || true
   ${OPENCLAW_BIN} config set gateway.auth.mode none || true
   ${OPENCLAW_BIN} config set models.providers.litellm \
-    '{\"baseUrl\":\"http://localhost:4000\",\"apiKey\":\"sk-openclaw\",\"models\":[{\"id\":\"gpt-4o\",\"name\":\"GPT-4o (Azure AI Foundry)\"},{\"id\":\"gpt-4o-mini\",\"name\":\"GPT-4o Mini (Azure AI Foundry)\"}]}' \
+    '{\"baseUrl\":\"http://localhost:4000\",\"apiKey\":\"sk-openclaw\",\"api\":\"azure-openai-responses\",\"models\":[{\"id\":\"gpt-4o\",\"name\":\"GPT-4o (Azure AI Foundry)\",\"api\":\"azure-openai-responses\"},{\"id\":\"gpt-4o-mini\",\"name\":\"GPT-4o Mini (Azure AI Foundry)\",\"api\":\"azure-openai-responses\"}]}' \
     --strict-json || true
   ${OPENCLAW_BIN} models set litellm/gpt-4o-mini || true
   ${OPENCLAW_BIN} models set litellm/gpt-4o || true
