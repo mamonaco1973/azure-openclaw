@@ -39,7 +39,7 @@
         <mxCell id="gpt4omini-box" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0078D4;fontColor=#ffffff;strokeColor=#005A9E;fontSize=11;arcSize=20;" value="&lt;font style=&quot;font-size: 18px;&quot;&gt;&lt;b&gt;GPT-4o Mini&lt;/b&gt;&lt;br&gt;&lt;i&gt;fast · cost-efficient&lt;/i&gt;&lt;/font&gt;" vertex="1">
           <mxGeometry height="65" width="175" x="1125" y="490" as="geometry" />
         </mxCell>
-        <mxCell id="acs-box" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=12;arcSize=10;" value="&lt;font style=&quot;font-size: 18px;&quot;&gt;&lt;b&gt;ACS Email&lt;/b&gt;&lt;br&gt;Azure Communication Services · Outbound email&lt;/font&gt;" vertex="1">
+        <mxCell id="acs-box" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=12;arcSize=10;" value="&lt;font style=&quot;font-size: 17px;&quot;&gt;&lt;b style=&quot;&quot;&gt;ACS Email&lt;/b&gt;&lt;br&gt;Azure Communication Services · Outbound email&lt;/font&gt;" vertex="1">
           <mxGeometry height="65" width="400" x="910" y="310" as="geometry" />
         </mxCell>
         <mxCell id="arrow-aoai" edge="1" parent="1" source="litellm-box" style="edgeStyle=orthogonalEdgeStyle;rounded=0;fontSize=11;fontStyle=2;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="aoai-container" value="model invocation">

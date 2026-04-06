@@ -58,6 +58,8 @@ manual setup.
 
 ## Architecture
 
+![azure-openclaw](azure-openclaw.png)
+
 The deployment spans three Terraform phases backed by a Packer managed image
 build. **01-core** establishes the network foundation — a VNet with a VM subnet
 and NAT gateway for egress — and creates the Azure Key Vault, the Azure AI Foundry
