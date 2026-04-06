@@ -1,4 +1,4 @@
-# Video Script — AI Agent Workstation on AWS with OpenClaw
+# Video Script — AI Agent Workstation on Azure with OpenClaw
 
 ---
 
@@ -6,19 +6,19 @@
 
 [ Screen recording of OpenClaw running the cost report — agent executing commands, email arriving in inbox ]
 
-"Do you want an AI agent that can automate cloud tasks directly inside your AWS environment?"
+"Do you want an AI agent that can automate cloud tasks directly inside your Azure environment?"
 
-[ Architecture diagram — walk through it left to right: user, EC2 instance, Bedrock ]
+[ Architecture diagram — walk through it left to right: user, Azure VM, Azure OpenAI ]
 
-"In this project we deploy an AI agent workstation on AWS using Terraform, Packer, OpenClaw, and AWS Bedrock."
+"In this project we deploy an AI agent workstation on Azure using Terraform, Packer, OpenClaw, and Azure OpenAI."
 
 [ OpenClaw UI showing the agent mid-task with terminal output visible ]
 
-"The agent runs on an EC2 instance with access to the filesystem, terminal, browser, and AWS APIs — all through the instance IAM role."
+"The agent runs on an Azure VM with access to the filesystem, terminal, browser, and Azure APIs — all through the VM managed identity. No credentials to manage, no keys to rotate."
 
-[ Terminal running apply.sh — flying through build steps, ends with instance ID and connection details ]
+[ Terminal running apply.sh — flying through build steps, ends with VM IP and connection details ]
 
-"Follow along and in minutes you'll have a fully functional AI agent running in your AWS environment."
+"Follow along and in minutes you'll have a fully functional AI agent running in your Azure environment."
 
 ---
 
@@ -28,45 +28,77 @@
 
 "Let's walk through the architecture before we build."
 
-[ Highlight EC2 instance ]
+[ Highlight Azure VM ]
 
-"At the center is an Ubuntu EC2 instance with a desktop environment — the agent's workstation. You connect over RDP and get a normal desktop with Chrome, VS Code, and a terminal."
+"At the center is an Ubuntu VM with a desktop environment — the agent's workstation. You connect over RDP and get a normal desktop with Chrome, VS Code, and a terminal."
 
 [ Highlight OpenClaw gateway ]
 
-"OpenClaw runs on that instance and gives the agent its capabilities — shell execution, filesystem access, browser control, and email."
+"OpenClaw runs on that VM and gives the agent its capabilities — shell execution, filesystem access, browser control, and email."
 
-[ Highlight LiteLLM + Bedrock ]
+[ Highlight LiteLLM + Azure OpenAI ]
 
-"Reasoning goes through LiteLLM, which proxies requests to AWS Bedrock — Claude Sonnet, Claude Haiku, Nova Pro, Nova Lite."
+"Reasoning goes through LiteLLM, which proxies requests to Azure OpenAI — GPT-4o for complex tasks, GPT-4o Mini for fast lightweight work."
 
-[ Highlight SES ]
+[ Highlight Azure Communication Services ]
 
-"Outbound email routes through Amazon SES, configured automatically at boot."
+"Outbound email routes through Azure Communication Services with an auto-verified managed domain — no DNS configuration required."
+
+[ Highlight Key Vault ]
+
+"All secrets — the VM password, OpenAI config, and email connection string — live in Azure Key Vault. The VM pulls them at boot using its managed identity."
 
 [ Full diagram ]
 
-"A workstation on AWS, an AI agent on top of it, wired to Bedrock and AWS services. Let's build it."
+"A workstation on Azure, an AI agent on top of it, wired to Azure OpenAI and Azure services. Let's build it."
+
+---
+
+## Build the Code
+
+[ Terminal — running ./apply.sh ]
+
+"A single script — apply.sh — handles the entire deployment."
+
+[ Terminal — 01-core Terraform applying ]
+
+"Phase one deploys the core infrastructure: VNet, NAT gateway, Key Vault, Azure OpenAI with both model deployments, and Azure Communication Services for email."
+
+[ Terminal — Packer build running ]
+
+"Phase two runs Packer to build the managed image from a clean Ubuntu 24.04 base. It installs the LXQt desktop, XRDP, Chrome, VS Code, OpenClaw, LiteLLM, and all supporting tools."
+
+[ Terminal — 03-openclaw Terraform applying ]
+
+"Phase three deploys the VM from that image, attaches the managed identity, assigns RBAC roles, and runs the first-boot script to wire everything together."
+
+[ Terminal — validate.sh output, IP address printed ]
+
+"When it finishes, the VM's public IP is printed. That's all you need to connect."
 
 ---
 
 ## Build Results
 
-[ Terminal — build complete, instance ID and connection details printed ]
+[ Terminal — build complete, IP and connection details printed ]
 
-"The build has completed. Now let's go into the console and see what was deployed."
+"The build has completed. Let's go into the portal and see what was deployed."
 
-[ AWS Console — EC2 instance running, public IP visible ]
+[ Azure Portal — resource group openclaw-core-rg, resources listed ]
 
-"The AI agent's workstation is running as an EC2 instance."
+"The core resource group holds the VNet, Key Vault, Azure OpenAI account, and Azure Communication Services."
 
-[ AWS Console — Secrets Manager, openclaw_credentials and openclaw_ses_smtp ]
+[ Azure Portal — Azure OpenAI deployments: gpt-4o and gpt-4o-mini ]
 
-"Two secrets are in Secrets Manager — one holds the desktop password, the other holds the SES SMTP credentials. The instance pulls both at boot, no credentials ever touch the code."
+"Two model deployments are ready — GPT-4o as the primary model and GPT-4o Mini for fast responses."
 
-[ AWS Console — SES verified identity ]
+[ Azure Portal — Key Vault secrets: openclaw-credentials, openclaw-openai-config, openclaw-email-config ]
 
-"SES is configured with a verified sender identity. Once you click the verification link in your inbox, the agent can send outbound email."
+"Key Vault holds three secrets. The VM reads all of them at first boot using its managed identity — no credentials ever touch the code."
+
+[ Azure Portal — VM openclaw-host, managed identity tab ]
+
+"The VM has a system-assigned managed identity. It's been granted Key Vault Secrets User and Cost Management Reader — just enough access to do its job."
 
 [ RDP session connecting — LXQt desktop loads ]
 
@@ -86,15 +118,15 @@
 
 [ Typing the prompt ]
 
-"Generate an AWS cost report with the month-to-date total, a daily breakdown for the last 7 days, and the top 10 services by spend this month. Send it as a formatted HTML email to XXXXXXXX using msmtp directly and make that e-mail address the sender."
+"Generate an Azure cost report with the month-to-date total, a daily breakdown for the last 7 days, and the top services by spend this month. Send it as a formatted HTML email to XXXXXXXX using acs-mail."
 
-[ Agent working — AWS CLI calls visible, script being written and executed ]
+[ Agent working — Azure CLI calls visible, script being written and executed ]
 
-"The agent figures out how to do this on its own. It calls Cost Explorer, builds an HTML report, and sends it through msmtp — no additional instructions."
+"The agent figures out how to do this on its own. It calls Azure Cost Management, builds an HTML report, and sends it through acs-mail — no additional instructions."
 
 [ Inbox — styled HTML cost report email arrives ]
 
-"There's the report. Month-to-date total, daily breakdown, top services — formatted HTML, delivered through SES."
+"There's the report. Month-to-date total, daily breakdown, top services — formatted HTML, delivered through Azure Communication Services."
 
 [ Back to OpenClaw — typing follow-up prompt ]
 
