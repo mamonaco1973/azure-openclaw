@@ -159,6 +159,7 @@ def main():
     args = parser.parse_args()
 
     body = args.body if args.body else sys.stdin.read()
+    is_html = body.strip().startswith("<")
 
     with open("/opt/openclaw/email-config.json") as f:
         config = json.load(f)
@@ -166,10 +167,11 @@ def main():
     from azure.communication.email import EmailClient
     client = EmailClient.from_connection_string(config["connection_string"])
 
+    content = {"subject": args.subject, "html": body} if is_html else {"subject": args.subject, "plainText": body}
     message = {
         "senderAddress": config["from_address"],
         "recipients": {"to": [{"address": args.to}]},
-        "content": {"subject": args.subject, "plainText": body},
+        "content": content,
     }
 
     poller = client.begin_send(message)
