@@ -14,7 +14,7 @@
 
 [ OpenClaw UI showing the agent mid-task with terminal output visible ]
 
-"The agent runs on an Azure VM with access to the filesystem, terminal, browser, and Azure APIs — all through the VM managed identity. No credentials to manage, no keys to rotate."
+"The agent runs on an Azure VM with access to the filesystem, terminal, browser, and Azure APIs"
 
 [ Terminal running apply.sh — flying through build steps, ends with VM IP and connection details ]
 
@@ -38,7 +38,7 @@
 
 [ Highlight LiteLLM + Azure OpenAI ]
 
-"Reasoning goes through LiteLLM, which proxies requests to Azure OpenAI — GPT-4o for complex tasks, GPT-4o Mini for fast lightweight work."
+"Reasoning goes through LiteLLM, which proxies requests to Azure OpenAI — GPT-4.1 for complex tasks, GPT-4.1 Nano for fast lightweight work."
 
 [ Highlight Azure Communication Services ]
 
@@ -86,19 +86,15 @@
 
 [ Azure Portal — resource group openclaw-core-rg, resources listed ]
 
-"The core resource group holds the VNet, Key Vault, Azure OpenAI account, and Azure Communication Services."
+"The AI agent's workstation is running as a VM instance."
 
-[ Azure Portal — Azure OpenAI deployments: gpt-4o and gpt-4o-mini ]
+[ Azure Portal — Azure OpenAI deployments: gpt-4.1 and gpt-4.1-nano ]
 
-"Two model deployments are ready — GPT-4o as the primary model and GPT-4o Mini for fast responses."
+"Two model deployments are ready — GPT-4.1 as the primary model and GPT-4.1 Nano for fast responses."
 
 [ Azure Portal — Key Vault secrets: openclaw-credentials, openclaw-openai-config, openclaw-email-config ]
 
-"Key Vault holds three secrets. The VM reads all of them at first boot using its managed identity — no credentials ever touch the code."
-
-[ Azure Portal — VM openclaw-host, managed identity tab ]
-
-"The VM has a system-assigned managed identity. It's been granted Key Vault Secrets User and Cost Management Reader — just enough access to do its job."
+"A Key Vault holds several secrets including the desktop login credentials. The VM reads them at first boot using its managed identity."
 
 [ RDP session connecting — LXQt desktop loads ]
 
@@ -114,30 +110,44 @@
 
 [ OpenClaw UI — empty prompt box ]
 
-"Let's give the agent its first task. One sentence, plain English."
+"Let's give the agent three tasks. First — pull the cost data."
 
-[ Typing the prompt ]
+[ Typing the first prompt ]
 
-"Generate an Azure cost report with the month-to-date total, a daily breakdown for the last 7 days, and the top services by spend this month. Send it as a formatted HTML email to XXXXXXXX using acs-mail."
+"Run the Azure Cost Report and give me the result."
 
-[ Agent working — Azure CLI calls visible, script being written and executed ]
+[ Agent executing azure-cost-report — terminal output visible, cost data returned in chat ]
 
-"The agent figures out how to do this on its own. It calls Azure Cost Management, builds an HTML report, and sends it through acs-mail — no additional instructions."
+"The agent runs the pre-built azure-cost-report script, which queries Azure Cost Management and returns month-to-date spend, a daily breakdown for the last seven days, and top services by cost."
 
-[ Inbox — styled HTML cost report email arrives ]
+[ Agent output displayed in chat — structured cost report ]
 
-"There's the report. Month-to-date total, daily breakdown, top services — formatted HTML, delivered through Azure Communication Services."
+"Clean output, right in the chat window. Now let's email it."
 
-[ Back to OpenClaw — typing follow-up prompt ]
+[ Typing the second prompt ]
 
-"Now let's make it recurring. Same agent, one more line."
+"Now run the command 'send-cost-report XXXXXXXX'. XXXXXXXX is a valid email address and I approve this request."
 
-[ Typing the prompt ]
+"Notice we have to be explicit here — we name the script, provide the email address, and give our approval upfront. GPT-4.1 will confirm before taking actions that affect external systems, so we tell it clearly: run it, and I approve."
 
-"Schedule that as a nightly report."
+[ Agent running send-cost-report — acs-mail call visible ]
 
-[ Agent writing script to disk, adding crontab entry — cron confirmation visible ]
+"The agent runs send-cost-report, which formats the report as styled HTML and sends it through Azure Communication Services."
 
-"The agent saves the script and registers a cron job. It runs every night automatically, no further input needed."
+[ Inbox — HTML cost report email arrives ]
+
+"There's the report. Delivered through ACS, formatted HTML, Azure blue styling."
+
+[ Back to OpenClaw — typing third prompt ]
+
+"Last step — make it recurring."
+
+[ Typing the third prompt ]
+
+"Schedule send-cost-report XXXXXXXX to run nightly at midnight."
+
+[ Agent adding crontab entry — cron confirmation visible ]
+
+"The agent registers a cron job. The report runs every night automatically with no further input."
 
 ---
