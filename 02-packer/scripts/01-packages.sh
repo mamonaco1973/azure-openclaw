@@ -12,6 +12,43 @@ set -euo pipefail
 
 export DEBIAN_FRONTEND=noninteractive
 
+# ------------------------------------------------------------------------------
+# apt retry helper -- installed first, used by every later build script
+# ------------------------------------------------------------------------------
+# security.ubuntu.com is a pool of servers that are briefly out of step while a
+# security update is being published. If `apt-get update` reads the new index
+# from one and `apt-get install` asks another for the .deb, the install dies
+# with "404 Not Found" -- randomly, and only during that window.
+#
+# Acquire::Retries covers transient network errors. The helper covers the 404:
+# on failure it waits, re-reads the index (which then matches what the server
+# actually has), and tries again.
+echo "NOTE: [packages] configuring apt retries"
+cat > /etc/apt/apt.conf.d/80-retries <<'APTCONF'
+Acquire::Retries "5";
+APTCONF
+
+cat > /usr/local/sbin/apt-install-retry <<'HELPER'
+#!/bin/bash
+# Usage: apt-install-retry -y pkg... (same arguments as apt-get install)
+set -uo pipefail
+attempts=4
+for i in $(seq 1 "${attempts}"); do
+  if apt-get install "$@"; then
+    exit 0
+  fi
+  if [ "${i}" -lt "${attempts}" ]; then
+    echo "WARNING: [apt] install failed (attempt ${i}/${attempts})," \
+         "refreshing the index and retrying in $((i * 15))s"
+    sleep $((i * 15))
+    apt-get update -y || true
+  fi
+done
+echo "ERROR: [apt] install failed after ${attempts} attempts: $*"
+exit 1
+HELPER
+chmod 755 /usr/local/sbin/apt-install-retry
+
 echo "NOTE: [packages] removing snap"
 systemctl stop snapd.service 2>/dev/null || true
 snap remove --purge lxd 2>/dev/null || true
@@ -24,10 +61,11 @@ echo "NOTE: [packages] snap removed"
 
 echo "NOTE: [packages] installing base packages"
 apt-get update -y
-apt-get install -y \
+apt-install-retry -y \
   curl \
   ca-certificates \
   jq \
+  libnotify-bin \
   unzip \
   wget \
   python3-venv \

@@ -15,7 +15,7 @@ export DEBIAN_FRONTEND=noninteractive
 
 echo "NOTE: [xrdp] installing xrdp"
 apt-get update -y
-apt-get install -y xrdp
+apt-install-retry -y xrdp
 
 echo "NOTE: [xrdp] configuring LXQt session"
 tee /etc/xrdp/startwm.sh >/dev/null <<'EOF'

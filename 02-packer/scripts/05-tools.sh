@@ -23,7 +23,7 @@ export DEBIAN_FRONTEND=noninteractive
 # ================================================================================
 
 echo "NOTE: [tools] installing git"
-apt-get install -y git
+apt-install-retry -y git
 echo "NOTE: [tools] git $(git --version)"
 
 
@@ -45,14 +45,14 @@ echo "NOTE: [tools] $(aws --version)"
 # ================================================================================
 
 echo "NOTE: [tools] adding HashiCorp APT repository"
-apt-get install -y gnupg software-properties-common
+apt-install-retry -y gnupg software-properties-common
 curl -fsSL https://apt.releases.hashicorp.com/gpg \
   | gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
 echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] \
 https://apt.releases.hashicorp.com $(lsb_release -cs) main" \
   | tee /etc/apt/sources.list.d/hashicorp.list >/dev/null
 apt-get update -y
-apt-get install -y terraform packer
+apt-install-retry -y terraform packer
 echo "NOTE: [tools] $(terraform -version | head -1)"
 echo "NOTE: [tools] $(packer -version)"
 
@@ -70,7 +70,7 @@ echo "deb [signed-by=/etc/apt/keyrings/microsoft-azure-cli-archive-keyring.gpg] 
 https://packages.microsoft.com/repos/azure-cli/ $(lsb_release -cs) main" \
   | tee /etc/apt/sources.list.d/azure-cli.list >/dev/null
 apt-get update -y
-apt-get install -y azure-cli
+apt-install-retry -y azure-cli
 echo "NOTE: [tools] $(az --version | head -1)"
 
 
@@ -90,7 +90,7 @@ apt-get update -y
 # left as a transitional package, so the old name fails the build with
 # 'has no installation candidate'.  The repo, key and .list name are
 # unchanged -- only the package is.
-apt-get install -y google-cloud-cli
+apt-install-retry -y google-cloud-cli
 echo "NOTE: [tools] $(gcloud --version | head -1)"
 
 
@@ -105,7 +105,7 @@ echo "deb [arch=amd64 signed-by=/usr/share/keyrings/microsoft.gpg] \
 https://packages.microsoft.com/repos/code stable main" \
   | tee /etc/apt/sources.list.d/vscode.list >/dev/null
 apt-get update -y
-apt-get install -y code
+apt-install-retry -y code
 echo "NOTE: [tools] VS Code installed"
 
 echo "NOTE: [tools] done"

@@ -13,7 +13,8 @@ set -euo pipefail
 # Flow:
 #   1. Start litellm with a placeholder Azure OpenAI config (placeholder creds).
 #   2. Run openclaw gateway in background as openclaw user (stamps config).
-#   3. Configure the litellm model provider via CLI (gpt-4o + gpt-4o-mini).
+#   3. Configure a placeholder litellm model provider via CLI (custom_data.sh
+#      replaces it at first boot with the list from azure-config.sh).
 #   4. Stop both processes — config is persisted at /home/openclaw/.openclaw.
 #
 # Note: The placeholder config uses dummy Azure OpenAI creds. The real endpoint
@@ -98,33 +99,40 @@ You are running on an Azure VM with the following capabilities:
 
 - **exec tool**: Full shell access — use it to run commands directly. Never ask the user to run commands manually.
 - **Azure CLI**: Pre-authenticated via VM managed identity. No az login needed.
-- **Email**: `echo "body" | acs-mail -s "Subject" -t recipient@example.com`
 - **Azure Cost Report**: Run `azure-cost-report` via exec — it prints month-to-date total, daily breakdown for last 7 days, and top services by spend.
-- **Send Cost Report**: Run `send-cost-report <email>` via exec — generates an HTML cost report and emails it via ACS. Example: `send-cost-report user@example.com`
+- **Web**: Apache2 serves /var/www/html (world-writable) at http://localhost/ — write a file there and open it in the browser.
 
 Read SYSTEM.md in this workspace for the full list of installed tools and capabilities.
 HEARTBEAT
+
+# Email is NOT described here, and neither is send-cost-report (which mails
+# its output). Both depend on the openclaw-email-config secret, which the
+# image cannot know about; custom_data.sh appends them to HEARTBEAT.md and
+# SYSTEM.md at boot when it finds ACS credentials.
+#
+# The model list is not here either: it comes from azure-config.sh and the
+# OpenClaw model picker shows it, so a copy here would only go stale.
 echo "NOTE: [openclaw-init] writing SYSTEM.md to workspace"
 cat > "${WORKSPACE}/SYSTEM.md" <<'SYSTEM'
 # System Capabilities
 
 This instance has the following tools and capabilities available via exec.
 
-## AI Models (via LiteLLM on port 4000)
-- **gpt-4.1** — GPT-4.1 via Azure OpenAI (primary model)
-- **gpt-4.1-nano** — GPT-4.1 Nano via Azure OpenAI (fast/cost-efficient)
-- **gpt-5** — GPT-5 via Azure OpenAI (most capable)
-- **gpt-5-mini** — GPT-5 Mini via Azure OpenAI (capable/cost-efficient)
-
-## Email
-If Azure Communication Services is configured, use the `acs-mail` command:
+## Web publishing
+Apache2 is installed and running. The document root is `/var/www/html`, and it
+is world-writable, so you can publish a page with the exec tool and no sudo:
 
 ```bash
-# Plain text
-echo "Body here" | acs-mail -s "Subject" -t recipient@example.com
+echo "<h1>hello</h1>" > /var/www/html/index.html
 ```
 
-Config is at /opt/openclaw/email-config.json if email is enabled.
+It is then served at http://localhost/ — open that with the browser tool to
+show the user the result. Port 80 is not reachable from outside the instance,
+so this is for showing things on the desktop, not for publishing to the web.
+
+Anything self-contained works: a single HTML file, or HTML plus CSS and
+JavaScript. Write the files, then open the page to demonstrate it.
+
 
 ## Document Processing
 - **python-docx** — read/write Word documents

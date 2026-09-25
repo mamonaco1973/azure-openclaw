@@ -47,6 +47,13 @@ if [ $? -ne 0 ]; then
   exit 1
 fi
 
+# Hand the model list and region to Terraform as TF_VAR_*, so the deploy uses
+# exactly the models check_env.sh just checked rather than whatever the
+# variable defaults happen to say. 01-core creates the deployments from it;
+# 03-openclaw renders the LiteLLM config and the model picker from it.
+source ./azure-config.sh
+azure_export_tf_vars
+
 
 # ================================================================================
 # PHASE 1: Core Infrastructure
@@ -86,6 +93,7 @@ packer build \
   -var "subscription_id=${ARM_SUBSCRIPTION_ID}" \
   -var "tenant_id=${ARM_TENANT_ID}" \
   -var "resource_group=openclaw-project-rg" \
+  -var "location=${AZURE_LOCATION}" \
   ./openclaw.pkr.hcl
 
 cd ..

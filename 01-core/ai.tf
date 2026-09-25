@@ -3,11 +3,9 @@
 # ================================================================================
 #
 # Purpose:
-#   Deploy Azure OpenAI Service with four model deployments:
-#     - gpt-4.1       (primary agentic model)
-#     - gpt-4.1-nano  (fast / cost-efficient)
-#     - gpt-5         (most capable)
-#     - gpt-5-mini    (capable / cost-efficient)
+#   Deploy Azure OpenAI Service with one model deployment per entry in
+#   var.models, which apply.sh populates from azure-config.sh. Each deployment
+#   is named after its alias -- the name LiteLLM routes on and OpenClaw stores.
 #
 #   The API key and endpoint are stored in Key Vault as openclaw-openai-config
 #   so the VM can retrieve them at boot via managed identity.
@@ -34,47 +32,41 @@ resource "azurerm_cognitive_account" "openai" {
 }
 
 # ------------------------------------------------------------------------------
-# GPT-4.1 deployment — primary agentic model
+# Model deployments -- one per entry in azure-config.sh
 # ------------------------------------------------------------------------------
-resource "azurerm_cognitive_deployment" "gpt41" {
-  name                 = "gpt-4.1"
+resource "azurerm_cognitive_deployment" "model" {
+  for_each = { for m in var.models : m.alias => m }
+
+  name                 = each.key
   cognitive_account_id = azurerm_cognitive_account.openai.id
 
   model {
-    format  = "OpenAI"
-    name    = "gpt-4.1"
-    version = "2025-04-14"
+    format  = each.value.format
+    name    = each.value.model
+    version = each.value.version
   }
 
   sku {
-    name     = "GlobalStandard"
-    capacity = 100
+    name     = var.deployment_sku
+    capacity = each.value.capacity
   }
 
   rai_policy_name = "Microsoft.DefaultV2"
 }
 
-# ------------------------------------------------------------------------------
-# GPT-4.1 Nano deployment — fast / cost-efficient
-# ------------------------------------------------------------------------------
-resource "azurerm_cognitive_deployment" "gpt41_nano" {
-  name                 = "gpt-4.1-nano"
-  cognitive_account_id = azurerm_cognitive_account.openai.id
-
-  model {
-    format  = "OpenAI"
-    name    = "gpt-4.1-nano"
-    version = "2025-04-14"
-  }
-
-  sku {
-    name     = "GlobalStandard"
-    capacity = 100
-  }
-
-  rai_policy_name = "Microsoft.DefaultV2"
+# These two deployments were separate resources before the model list moved
+# into azure-config.sh. The moved blocks carry their state to the new
+# addresses so an upgrade updates them in place rather than deleting and
+# recreating them (which would briefly take the models away from LiteLLM).
+moved {
+  from = azurerm_cognitive_deployment.gpt41
+  to   = azurerm_cognitive_deployment.model["gpt-4.1"]
 }
 
+moved {
+  from = azurerm_cognitive_deployment.gpt41_nano
+  to   = azurerm_cognitive_deployment.model["gpt-4.1-nano"]
+}
 
 
 # ------------------------------------------------------------------------------
@@ -86,13 +78,22 @@ resource "azurerm_key_vault_secret" "openai_config" {
   key_vault_id = azurerm_key_vault.openclaw_vault.id
   content_type = "application/json"
 
+  # Deployment names are not stored here any more: they are the aliases in
+  # var.models, which 03-openclaw receives directly from azure-config.sh.
+  #
+  # foundry_endpoint serves every format through one OpenAI-compatible route
+  # (/openai/v1); custom_data.sh uses it for the non-OpenAI models.
   value = jsonencode({
-    endpoint              = azurerm_cognitive_account.openai.endpoint
-    api_key               = azurerm_cognitive_account.openai.primary_access_key
-    api_version           = "2025-03-01-preview"
-    gpt41_deployment      = azurerm_cognitive_deployment.gpt41.name
-    gpt41_nano_deployment = azurerm_cognitive_deployment.gpt41_nano.name
+    endpoint         = azurerm_cognitive_account.openai.endpoint
+    foundry_endpoint = "https://${azurerm_cognitive_account.openai.custom_subdomain_name}.services.ai.azure.com/"
+    api_key          = azurerm_cognitive_account.openai.primary_access_key
+    api_version      = "2025-03-01-preview"
   })
 
-  depends_on = [azurerm_role_assignment.kv_secrets_officer]
+  # Written after the deployments exist, so a VM that reads this secret never
+  # finds an endpoint whose models are still provisioning.
+  depends_on = [
+    azurerm_role_assignment.kv_secrets_officer,
+    azurerm_cognitive_deployment.model,
+  ]
 }

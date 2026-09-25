@@ -17,7 +17,7 @@ cd /tmp
 wget -q https://download.onlyoffice.com/install/desktop/editors/linux/onlyoffice-desktopeditors_amd64.deb
 
 echo "NOTE: [onlyoffice] installing"
-apt-get install -y ./onlyoffice-desktopeditors_amd64.deb
+apt-install-retry -y ./onlyoffice-desktopeditors_amd64.deb
 rm onlyoffice-desktopeditors_amd64.deb
 
 echo "NOTE: [onlyoffice] done"

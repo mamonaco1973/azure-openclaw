@@ -102,9 +102,9 @@ source "azure-arm" "openclaw" {
   image_sku       = "server"
   image_version   = "latest"
 
-  location   = var.location
-  vm_size    = var.vm_size
-  os_type    = "Linux"
+  location     = var.location
+  vm_size      = var.vm_size
+  os_type      = "Linux"
   ssh_username = "ubuntu"
 
   # Timestamped name allows multiple versions to coexist.
@@ -207,6 +207,12 @@ build {
   # Install Azure helper scripts.
   provisioner "shell" {
     script          = "./scripts/13-azure-tools.sh"
+    execute_command = "sudo -E bash '{{.Path}}'"
+  }
+
+  # Install Apache so the agent has somewhere to publish what it builds.
+  provisioner "shell" {
+    script          = "./scripts/14-apache.sh"
     execute_command = "sudo -E bash '{{.Path}}'"
   }
 
