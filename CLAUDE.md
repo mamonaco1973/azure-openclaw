@@ -6,16 +6,24 @@ Terraform + Packer project that deploys an Azure VM running **OpenClaw**
 (an AI coding agent) backed by **LiteLLM proxy** pointed at **Azure OpenAI**.
 Users RDP into an LXQt desktop and access the OpenClaw web UI at
 `http://localhost:18789` in Chrome. The Azure OpenAI models come from
-`azure-config.sh` (GPT-4.1 and GPT-4.1 Nano by default).
+`azure-config.sh` (GPT-4.1 primary, plus GPT-4.1 Nano, GPT-6 Sol and GPT-5.4
+Mini by default). RDP (3389) and SSH (22) are both open from anywhere on
+`openclaw-nsg`.
+
+The README architecture diagram is generated: edit `make_diagram.py` and run
+`python make_diagram.py`, which rewrites `architecture-{light,dark}.svg`. It
+reads the model names from `azure-config.sh`. Keep it in step with
+aws-openclaw's `make_diagram.py`, which it was copied from.
 
 ## Architecture
 
 ```
-01-core/          VNet + subnets + NAT gateway + Key Vault + Azure OpenAI + ACS Email
+01-core/          VNet + subnet + NSG + NAT gateway + Key Vault + Azure OpenAI + ACS Email
 02-packer/        Packer build: Ubuntu 24.04 → openclaw_image (azure-arm)
   scripts/        01-packages through 14-apache
-  files/          litellm.service, openclaw-gateway.service
+  files/          litellm/openclaw-gateway/xvfb services, openclaw.png
 03-openclaw/      Azure VM + managed identity + RBAC + Key Vault secrets
+                  (openclaw-credentials, ubuntu-credentials)
   scripts/
     custom_data.sh  Boot: retrieve password from Key Vault, write litellm config,
                     configure email, start systemd services, register models
@@ -42,9 +50,10 @@ probe_azure.py    Reports which models this subscription can deploy (and, once
 | LiteLLM port | `4000` |
 | LiteLLM master key | `sk-openclaw` |
 | OpenClaw gateway port | `18789` (loopback only) |
-| Azure OpenAI models | From `azure-config.sh`; `gpt-4.1`, `gpt-4.1-nano` by default |
+| Azure OpenAI models | From `azure-config.sh`; `gpt-4.1` (primary), `gpt-4.1-nano`, `gpt-6-sol`, `gpt-5.4-mini` by default |
 | Linux user | `openclaw` (sudo, NOPASSWD) |
 | Password source | Azure Key Vault secret `openclaw-credentials` |
+| Admin user | `ubuntu` (VM admin, SSH password auth on); Key Vault secret `ubuntu-credentials` |
 
 ## Common Commands
 
@@ -122,11 +131,17 @@ Runs at first boot on the Azure VM:
 3. Reads `openclaw-openai-config` from Key Vault → renders
    `/opt/openclaw/litellm-config.yaml`, one `model_list` entry per model in
    `azure-config.sh`
-4. Reads `openclaw-email-config` from Key Vault (optional) → configures
-   `acs-mail` and adds Email to the agent's workspace notes
+4. Reads `openclaw-email-config` from Key Vault → configures `acs-mail`
+   (plain text or HTML, no attachments) and adds Email to the agent's
+   workspace notes. The script treats the secret as optional, but `01-core`
+   always creates it
 5. Starts `litellm.service` and `openclaw-gateway.service`
 6. Registers every model with OpenClaw, sets the primary, and restarts the
    gateway
+
+The OpenAI API key and ACS connection string end up on disk under
+`/opt/openclaw` (LiteLLM config, `email-config.json`). The managed identity
+covers only Key Vault and Cost Management.
 
 ## Model Configuration
 
@@ -177,11 +192,14 @@ Anthropic models need "model provider data" (industry, organization name,
 country code) to deploy, so the probe marks them GATED, `--check` rejects
 them, and `--deploy` skips them.
 
-DeepSeek V4 Flash/Pro (added 2026-09-24) are the first non-OpenAI entries.
-Their quota is 20 each, so their capacity is 20. Not yet verified to drive
-OpenClaw tool calls.
+DeepSeek V4 Flash/Pro deploy (format `DeepSeek`, via the `openai/` route) but
+are left out of `azure-config.sh`: their quota is 20K tokens per minute, too
+small for a single agent turn.
 
-`gpt-4.1` and `gpt-4.1-nano` (the defaults) are *Legacy* and retire
+`gpt-6-sol` and `gpt-5.4-mini` are in the default list but not yet verified
+to drive OpenClaw tool calls.
+
+`gpt-4.1` (the primary) and `gpt-4.1-nano` are *Legacy* and retire
 2027-04-14.
 
 ## RBAC Permissions
@@ -197,7 +215,8 @@ The VM managed identity has:
 
 - `openclaw-vnet` (10.0.0.0/23) — single VNet
 - `vm-subnet` (10.0.0.0/25) — VM subnet, egress via NAT gateway
-- NSG `openclaw-nsg` — port 3389 inbound, all outbound allowed
+- NSG `openclaw-nsg` — ports 3389 (`Allow-RDP`) and 22 (`Allow-SSH`) inbound
+  from `*`, all outbound allowed
 - NAT Gateway — stable egress IP for API calls and package updates
 - Public IP on VM — direct RDP access
 - Apache listens on 80 but no NSG rule opens it — deliberately loopback only,

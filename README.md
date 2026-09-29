@@ -12,18 +12,18 @@ you connect.
 Users RDP into the desktop and interact with OpenClaw through its web interface
 at `http://localhost:18789`. The agent has full access to the local filesystem,
 terminal, browser, and Azure services via the VM managed identity — no
-credentials to manage, no keys to rotate.
+Azure credentials to manage, no keys to rotate.
 
 ![openclaw](openclaw.png)
 
-OpenClaw is backed by two **Azure OpenAI** models available for selection at
-runtime: **GPT-4.1** and **GPT-4.1 Nano** — both routed through a locally running
-**LiteLLM proxy** so the agent works with either model without configuration
-changes.
+OpenClaw is backed by the **Azure OpenAI** models listed in `azure-config.sh`
+— by default **GPT-4.1** (primary), **GPT-4.1 Nano**, **GPT-6 Sol** and
+**GPT-5.4 Mini** — all routed through a locally running **LiteLLM proxy** and
+selectable at runtime without configuration changes.
 
 Outbound **email** is configured automatically at boot using **Azure
 Communication Services** credentials retrieved from Key Vault, giving the agent
-the ability to send reports, notifications, and file attachments without any
+the ability to send reports and notifications (plain text or HTML) without any
 manual setup.
 
 ---
@@ -34,21 +34,24 @@ manual setup.
    and task agent. It can write and execute code, browse the web, manipulate
    files, call Azure APIs, and send email — all driven by natural language
    instructions.
-2. **Azure OpenAI Model Integration** — Two models (GPT-4.1 and GPT-4.1 Nano)
-   are available via LiteLLM proxy running on loopback. Model selection requires
+2. **Azure OpenAI Model Integration** — Every model in `azure-config.sh` (four
+   by default) is available via LiteLLM proxy running on loopback. Model selection requires
    no code changes — switch at any time in the OpenClaw UI.
 3. **Fully Automated Provisioning** — A single `apply.sh` command provisions
    the VNet, Key Vault, Azure OpenAI deployments, builds the managed image with
    Packer, and deploys the VM with Terraform.
-4. **Zero Credential Management** — The VM authenticates to Key Vault and Azure
-   services through its system-assigned managed identity. No access keys are
-   stored on disk or in code.
+4. **Managed Identity, Not Stored Credentials** — The VM reaches Key Vault and
+   Cost Management through its system-assigned managed identity, so no Azure
+   credentials live on the VM. The two service secrets that identity can't
+   replace — the Azure OpenAI API key and the ACS connection string — are
+   read from Key Vault at boot and written under `/opt/openclaw`; none are
+   stored in code.
 5. **Pre-Configured Desktop Environment** — LXQt desktop with Google Chrome,
    Visual Studio Code, OnlyOffice, a file manager, and terminal — all pinned
    to the desktop and ready on first login.
 6. **Integrated Email via ACS** — An `acs-mail` wrapper is configured at boot
    using Azure Communication Services credentials from Key Vault. The agent can
-   send plain text email and file attachments with a single command.
+   send plain text or HTML email with a single command (no attachments).
 7. **Infrastructure as Code** — Terraform manages all Azure resources across
    three phases (core networking + AI + email, image build, VM host) in a fully
    repeatable, auditable way. Packer builds the managed image from a clean
@@ -58,12 +61,19 @@ manual setup.
 
 ## Architecture
 
-![azure-openclaw](azure-openclaw.png)
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="architecture-dark.svg">
+  <img alt="An RDP client reaches an LXQt desktop on one Azure VM, where the OpenClaw gateway calls a loopback LiteLLM proxy that calls Azure OpenAI and publishes pages to a loopback Apache. With the VM's managed identity, custom_data.sh reads Key Vault at first boot and the agent reads Cost Management; email goes through Azure Communication Services" src="architecture-light.svg">
+</picture>
+
+The diagram is generated: edit `make_diagram.py` and run
+`python make_diagram.py`, which rewrites `architecture-{light,dark}.svg`. The
+Azure OpenAI model list is read from `azure-config.sh`.
 
 The deployment spans three Terraform phases backed by a Packer managed image
 build. **01-core** establishes the network foundation — a VNet with a VM subnet
 and NAT gateway for egress — and creates the Azure Key Vault, the Azure OpenAI
-account with both model deployments, and the Azure Communication Services email
+account with one deployment per model in `azure-config.sh`, and the Azure Communication Services email
 resource. Secrets (OpenAI config, email connection string) are stored in Key
 Vault immediately after creation. **02-packer** builds the `openclaw_image` from
 a clean Ubuntu 24.04 base, installing the full LXQt desktop, developer tooling,
@@ -75,10 +85,11 @@ wire everything together.
 At runtime, the user connects via RDP to the LXQt desktop and opens OpenClaw
 in Chrome. Prompts flow from the OpenClaw gateway to the LiteLLM proxy running
 on loopback, which routes model requests to Azure OpenAI using the API key
-retrieved from Key Vault at boot. The managed identity handles all Azure
-authentication throughout — no access keys ever touch the filesystem. Outbound
-email routes through Azure Communication Services using the connection string
-that `custom_data.sh` pulls from Key Vault on first boot.
+retrieved from Key Vault at boot. The managed identity handles Key Vault and
+Cost Management, so no Azure credentials touch the filesystem; the OpenAI API
+key and the ACS connection string do, under `/opt/openclaw`. Outbound email
+routes through Azure Communication Services using the connection string that
+`custom_data.sh` pulls from Key Vault on first boot.
 
 ---
 
@@ -94,7 +105,7 @@ that `custom_data.sh` pulls from Key Vault on first boot.
 | OpenClaw gateway port | `18789` (loopback) |
 | Linux user | `openclaw` |
 | Password source | Key Vault secret `openclaw-credentials` |
-| AI models | Defined in `azure-config.sh` (`gpt-4.1`, `gpt-4.1-nano` by default) |
+| AI models | Defined in `azure-config.sh` (`gpt-4.1` primary, `gpt-4.1-nano`, `gpt-6-sol`, `gpt-5.4-mini` by default) |
 | Web document root | `/var/www/html` (Apache, loopback only) |
 
 ---
@@ -105,6 +116,7 @@ that `custom_data.sh` pulls from Key Vault on first boot.
 * [Install Azure CLI](https://learn.microsoft.com/en-us/cli/azure/install-azure-cli)
 * [Install Terraform](https://developer.hashicorp.com/terraform/install)
 * [Install Packer](https://developer.hashicorp.com/packer/install)
+* `jq` and Python 3 (used by `check_env.sh` and `probe_azure.py`)
 * An RDP client (Windows built-in, macOS Microsoft Remote Desktop, or Remmina on Linux)
 * A service principal with the following roles on your subscription:
   - `Contributor`
@@ -158,8 +170,10 @@ the probe prints, and defaults to `OpenAI`:
 AZURE_MODELS=(
   "gpt-4.1|gpt-4.1|2025-04-14|100|GPT-4.1"
   "gpt-4.1-nano|gpt-4.1-nano|2025-04-14|100|GPT-4.1 Nano"
-  "deepseek-v4-flash|DeepSeek-V4-Flash|2026-04-23|20|DeepSeek V4 Flash|DeepSeek"
-  "deepseek-v4-pro|DeepSeek-V4-Pro|2026-04-23|20|DeepSeek V4 Pro|DeepSeek"
+  "gpt-6-sol|gpt-6-sol|2026-09-22|100|GPT-6 Sol"
+  "gpt-5.4-mini|gpt-5.4-mini|2026-03-17|100|GPT-5.4 Mini"
+  # A non-OpenAI entry carries its format as a sixth field, e.g.
+  # "deepseek-v4-flash|DeepSeek-V4-Flash|2026-04-23|20|DeepSeek V4 Flash|DeepSeek"
 )
 AZURE_PRIMARY="gpt-4.1"
 ```
@@ -172,9 +186,11 @@ provider; every other format through its `openai/` provider on the account's
 Foundry `/openai/v1` endpoint. Claude cannot be used (see above).
 
 > **Note:** `gpt-4.1` and `gpt-4.1-nano` are *Legacy* in the Azure catalog and
-> retire 2027-04-14. The probe flags this; `gpt-5.4`, `gpt-5.4-mini` and
-> `gpt-5.5` are the current GA line. Verify tool calling in the UI before
-> changing the primary.
+> retire 2027-04-14. The probe flags this. `gpt-6-sol` and `gpt-5.4-mini` are
+> in the default list but not yet verified to drive OpenClaw tool calls;
+> verify tool calling in the UI before changing the primary. DeepSeek is left
+> out of the defaults: its quota of 20K tokens per minute is too small for a
+> single agent turn.
 
 ---
 
@@ -199,9 +215,13 @@ NOTE: Found required command: az
 NOTE: Found required command: terraform
 NOTE: Found required command: jq
 NOTE: Found required command: packer
+NOTE: Found required command: python3
 NOTE: All required commands are available.
-NOTE: All required environment variables are set.
-NOTE: Azure login successful.
+...
+NOTE: Azure login successful. Subscription: <subscription-id>
+...
+NOTE: All models in azure-config.sh are deployable.
+NOTE: Environment validation complete.
 NOTE: Building core infrastructure...
 
 Initializing the backend...
@@ -219,7 +239,7 @@ Initializing the backend...
    `openclaw_image_<timestamp>`
 5. Discovers the latest built image name via `az image list`
 6. Deploys `03-openclaw` — Azure VM, managed identity, RBAC assignments,
-   Key Vault password secret
+   Key Vault password secrets
 7. Runs `validate.sh` and prints the RDP connection details
 
 To tear down all resources:
@@ -240,21 +260,27 @@ When the deployment completes, the following resources are created:
 - **Networking (01-core):**
   - Resource groups `openclaw-core-rg` and `openclaw-project-rg`
   - VNet `openclaw-vnet` with CIDR `10.0.0.0/23`
-  - Subnet `vm-subnet` (10.0.0.0/25) with NSG allowing RDP inbound
+  - Subnet `vm-subnet` (10.0.0.0/25) with NSG `openclaw-nsg` allowing RDP
+    (3389) and SSH (22) inbound from anywhere
   - NAT gateway for stable outbound internet access
 
 - **Key Vault (01-core):**
   - Azure Key Vault `openclaw-vault-<suffix>` with RBAC authorization
   - Secrets: `openclaw-openai-config`, `openclaw-email-config`
-  - Secret `openclaw-credentials` added by `03-openclaw` at deploy time
+  - Secrets `openclaw-credentials` (the `openclaw` desktop user) and
+    `ubuntu-credentials` (the VM's `ubuntu` admin user) added by
+    `03-openclaw` at deploy time
 
 - **Azure OpenAI (01-core):**
-  - Azure OpenAI account (`AIServices` kind) with two deployments:
+  - Azure OpenAI account (`AIServices` kind) with one `GlobalStandard`
+    deployment per model in `azure-config.sh`; by default:
 
     | Deployment | Model | Purpose |
     |---|---|---|
     | `gpt-4.1` | GPT-4.1 2025-04-14 | Primary agentic model |
     | `gpt-4.1-nano` | GPT-4.1 Nano 2025-04-14 | Fast / cost-efficient model |
+    | `gpt-6-sol` | GPT-6 Sol 2026-09-22 | Newest model; tool calls not yet verified |
+    | `gpt-5.4-mini` | GPT-5.4 Mini 2026-03-17 | Current GA small model; tool calls not yet verified |
 
 - **Email (01-core):**
   - Azure Communication Services resource
@@ -272,7 +298,7 @@ When the deployment completes, the following resources are created:
     **PCManFM-Qt** file manager, **QTerminal**
   - **AWS CLI v2**, **Azure CLI**, **Google Cloud SDK**, **Terraform**,
     **Packer**, **Git**
-  - **Node.js 22**, **pnpm**, **OpenClaw** installed globally
+  - **Node.js 22** and **OpenClaw** installed globally
   - **LiteLLM proxy** in a Python venv at `/opt/litellm-venv`
   - **Python tools** — python-docx, python-pptx, openpyxl, pandas, numpy,
     matplotlib, pymupdf, reportlab, beautifulsoup4, httpx, rich,
@@ -288,7 +314,9 @@ When the deployment completes, the following resources are created:
 - **Azure VM (03-openclaw):**
   - `Standard_D4s_v3` instance launched from `openclaw_image` with a 128 GB
     Premium SSD OS disk
-  - Public IP assigned; port 3389 open for direct RDP access
+  - Public IP assigned; ports 3389 (RDP) and 22 (SSH) open from anywhere
+  - Admin user `ubuntu` with a generated password (SSH password
+    authentication enabled), stored in Key Vault as `ubuntu-credentials`
   - **System-assigned managed identity** with the following RBAC roles:
 
     | Role | Scope | Purpose |
@@ -306,6 +334,8 @@ When the deployment completes, the following resources are created:
     4. Reads `openclaw-email-config` from Key Vault and installs the
        `acs-mail` wrapper with the ACS connection string
     5. Starts `litellm.service` and `openclaw-gateway.service`
+    6. Registers every model from `azure-config.sh` with OpenClaw, sets
+       `AZURE_PRIMARY` as the primary, and restarts the gateway
 
 - **Systemd Services:**
   - `xvfb.service` — Xvfb virtual framebuffer, starts before gateway
@@ -358,8 +388,10 @@ Click the model selector in the OpenClaw toolbar. The models from
 
 | Model | Best for |
 |---|---|
-| **GPT-4.1** | Complex reasoning, multi-step agentic tasks, analysis |
+| **GPT-4.1** (primary) | Complex reasoning, multi-step agentic tasks, analysis |
 | **GPT-4.1 Nano** | Fast responses, simple tasks, iteration |
+| **GPT-6 Sol** | Newest model; verify tool calling before relying on it |
+| **GPT-5.4 Mini** | Current GA small model; verify tool calling before relying on it |
 
 ### Agent Capabilities
 
