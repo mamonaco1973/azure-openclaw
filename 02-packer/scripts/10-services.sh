@@ -6,8 +6,9 @@ set -euo pipefail
 # ================================================================================
 #
 # Installs litellm.service and openclaw-gateway.service and enables them so
-# they start automatically at boot. Services are NOT started here — userdata.sh
-# writes the litellm config with the actual Bedrock model ID before starting.
+# they start automatically at boot. Services are NOT started here --
+# custom_data.sh writes the litellm config from azure-config.sh's model list
+# first.
 #
 # ================================================================================
 
@@ -31,7 +32,19 @@ systemctl enable openclaw-gateway
 echo "NOTE: [services] setting up desktop icons"
 mkdir -p /etc/skel/Desktop
 mkdir -p /home/openclaw/Desktop
-for app in openclaw.desktop google-chrome.desktop code.desktop pcmanfm-qt.desktop qterminal.desktop onlyoffice-desktopeditors.desktop; do
+# VS Code's entry is com.microsoft.VSCode.desktop, not code.desktop -- the
+# Microsoft package uses a reverse-DNS name. Under the old name the loop below
+# printed its WARNING and the image shipped without a VS Code icon.
+DESKTOP_APPS=(
+  openclaw.desktop
+  google-chrome.desktop
+  com.microsoft.VSCode.desktop
+  pcmanfm-qt.desktop
+  qterminal.desktop
+  onlyoffice-desktopeditors.desktop
+)
+
+for app in "${DESKTOP_APPS[@]}"; do
   src="/usr/share/applications/${app}"
   if [ -f "$src" ]; then
     ln -sf "$src" "/etc/skel/Desktop/${app}"
