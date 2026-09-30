@@ -13,6 +13,29 @@ set -euo pipefail
 export DEBIAN_FRONTEND=noninteractive
 
 # ------------------------------------------------------------------------------
+# apt mirror -- switch off Azure's regional mirror
+# ------------------------------------------------------------------------------
+# Azure's Ubuntu images default to azure.archive.ubuntu.com. That mirror is
+# normally fast because it sits inside Azure, but it degrades badly and without
+# warning: measured at 15 KB/s from an eastus builder on 2026-09-30, with the
+# VM otherwise idle (0% iowait, 100% idle CPU, apt asleep on the socket). At
+# that rate this build needs ~70 hours and never finishes.
+#
+# Nothing on the VM can fix a slow mirror, so use a different one. Canonical's
+# archive.ubuntu.com leaves the Azure network and is marginally slower on a
+# good day, which is a trade worth making against a build that cannot complete.
+#
+# Noble keeps its sources in deb822 format at sources.list.d/ubuntu.sources;
+# the old single-file path is handled too in case the base image changes.
+# Flip APT_MIRROR back to azure.archive.ubuntu.com if it ever recovers.
+APT_MIRROR="archive.ubuntu.com"
+echo "NOTE: [packages] pointing apt at ${APT_MIRROR}"
+for src in /etc/apt/sources.list.d/ubuntu.sources /etc/apt/sources.list; do
+  [ -f "${src}" ] || continue
+  sed -i "s|azure.archive.ubuntu.com|${APT_MIRROR}|g" "${src}"
+done
+
+# ------------------------------------------------------------------------------
 # dpkg unsafe I/O -- deliberate, do not remove
 # ------------------------------------------------------------------------------
 # dpkg fsyncs every unpacked file by default, so installing the desktop, the
