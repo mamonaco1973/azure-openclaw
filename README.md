@@ -1,4 +1,4 @@
-# AI Agent Workstation on Azure with OpenClaw, LiteLLM, and Microsoft Foundry
+# OpenClaw 2.0 on Azure
 
 This project delivers a fully automated **AI agent workstation** on Azure, built using **Terraform**, **Packer**, and **OpenClaw** — an agentic coding and task automation platform backed by **Microsoft Foundry** models via a **LiteLLM proxy**.
 
@@ -317,25 +317,7 @@ Apache serves `/var/www/html` at `http://localhost/`, and the directory is world
 - **"Do not print the code in chat"** pushes it toward an actual tool call. Left out, some models narrate `[exec command="..."]` as text and nothing runs.
 - **Enumerating features** does the design work. Left open, you get a paddle and a ball and no lives, win state, or restart.
 - **The closing `curl` check** makes the agent prove the page really serves rather than claiming success.
-- **Pinning `event.key`** is the one that is not obvious. See below.
-
-**The XRDP keymap lies about `event.code`.** On this desktop Chrome reports the left arrow as `key="ArrowLeft"` (correct) but `code="Convert"` (a Japanese *henkan* key). `event.code` is the modern, layout-independent choice, so a good model reaches for it by default — and the result is a game that draws perfectly and ignores every keypress, with nothing in the console to explain why. Both prompts below therefore forbid `event.code` outright and make the agent prove it with `grep -c`. Mouse-driven controls are unaffected, which is why this can hide for a long time.
-
-To see it for yourself:
-
-```bash
-cat > /var/www/html/keytest.html <<'EOF'
-<!doctype html><meta charset="utf-8"><title>key test</title>
-<body style="font:20px monospace;background:#111;color:#0f0;padding:24px">
-<div id="o">press the arrow keys</div>
-<script>
-addEventListener('keydown', e => {
-  o.textContent = 'key=' + e.key + '  code=' + e.code + '  keyCode=' + e.keyCode;
-  e.preventDefault();
-});
-</script>
-EOF
-```
+- **Pinning `event.key`** stops the game ignoring the keyboard. This desktop's keymap reports wrong `event.code` values, so a game that switches on `event.code` never sees a keypress.
 
 ### Breakout
 
