@@ -13,6 +13,21 @@ set -euo pipefail
 export DEBIAN_FRONTEND=noninteractive
 
 # ------------------------------------------------------------------------------
+# dpkg unsafe I/O -- deliberate, do not remove
+# ------------------------------------------------------------------------------
+# dpkg fsyncs every unpacked file by default, so installing the desktop, the
+# cloud CLIs and OnlyOffice costs tens of thousands of fsyncs. On a 128 GB
+# Premium OS disk (P10, 500 IOPS) that is the single largest cost in this
+# build -- larger than the downloads on a normal-speed day.
+#
+# force-unsafe-io is Debian's supported switch for exactly this case and is
+# what container base images use. What it gives up only matters if the machine
+# loses power mid-install; this is a throwaway Packer builder that is deleted
+# as soon as the image is captured, so there is nothing to protect.
+echo "NOTE: [packages] disabling dpkg fsync (throwaway build VM)"
+echo 'force-unsafe-io' > /etc/dpkg/dpkg.cfg.d/02-speedup
+
+# ------------------------------------------------------------------------------
 # apt retry helper -- installed first, used by every later build script
 # ------------------------------------------------------------------------------
 # security.ubuntu.com is a pool of servers that are briefly out of step while a

@@ -83,7 +83,16 @@ variable "location" {
 variable "vm_size" {
   description = "Builder VM size"
   type        = string
-  default     = "Standard_D4s_v3"
+
+  # 8 vCPU on the v5 family. The builder's size does not affect the image it
+  # produces, so this is free of any coupling to 03-openclaw -- unlike the OS
+  # disk size, which the runtime VM has to match or exceed.
+  #
+  # Double the vCPU for the parts that are CPU-bound (dpkg decompression, pip
+  # building wheels, npm linking), and a far higher network ceiling than the
+  # 2017-era D4s_v3. It will NOT rescue a build when the package mirrors are
+  # serving at a crawl -- nothing here will.
+  default = "Standard_D8as_v5"
 }
 
 
