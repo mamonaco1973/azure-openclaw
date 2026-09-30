@@ -84,15 +84,20 @@ variable "vm_size" {
   description = "Builder VM size"
   type        = string
 
-  # 8 vCPU on the v5 family. The builder's size does not affect the image it
-  # produces, so this is free of any coupling to 03-openclaw -- unlike the OS
-  # disk size, which the runtime VM has to match or exceed.
+  # 8 vCPU, same Dsv3 family the runtime VM uses. The builder's size does not
+  # affect the image it produces, so this is free of any coupling to
+  # 03-openclaw -- unlike the OS disk size, which the runtime VM must match.
   #
   # Double the vCPU for the parts that are CPU-bound (dpkg decompression, pip
-  # building wheels, npm linking), and a far higher network ceiling than the
-  # 2017-era D4s_v3. It will NOT rescue a build when the package mirrors are
-  # serving at a crawl -- nothing here will.
-  default = "Standard_D8as_v5"
+  # building wheels, npm linking). It will NOT rescue a build when the package
+  # mirrors are serving at a crawl -- nothing here will.
+  #
+  # Deliberately NOT a v5 size. Standard_D8as_v5 is the better machine, but
+  # standardDASv5Family quota on this subscription is 0 in eastus, so Packer
+  # fails preflight before it creates anything. Staying in the family that is
+  # already approved avoids a quota request. If DASv5 quota is ever granted,
+  # D8as_v5 is the upgrade.
+  default = "Standard_D8s_v3"
 }
 
 
