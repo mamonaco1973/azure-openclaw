@@ -196,8 +196,10 @@ DeepSeek V4 Flash/Pro deploy (format `DeepSeek`, via the `openai/` route) but
 are left out of `azure-config.sh`: their quota is 20K tokens per minute, too
 small for a single agent turn.
 
-`gpt-6-sol` and `gpt-5.4-mini` are in the default list but not yet verified
-to drive OpenClaw tool calls.
+`gpt-6-sol` drives OpenClaw tool calls correctly -- verified 2026-09-30 by
+having it write a game to /var/www/html, curl it back, and grep its own
+output, all in one turn. `gpt-5.4-mini` has not been put through the same
+test.
 
 `gpt-4.1` (the primary) and `gpt-4.1-nano` are *Legacy* and retire
 2027-04-14.

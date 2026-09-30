@@ -18,12 +18,12 @@ Still not the whole deployment: the VNet, its subnet and NSG, the NAT gateway,
 the resource groups and the Xvfb framebuffer are all real and none of them
 changes the request path this diagram exists to explain.
 
-The Azure OpenAI subtitle is read from azure-config.sh rather than typed here,
+The Microsoft Foundry subtitle is read from azure-config.sh rather than typed here,
 so changing the model list cannot leave the diagram claiming the old one.
 
 Same layout and conventions as aws-openclaw's make_diagram.py -- keep the two
 in step. One real difference: on Azure only Key Vault and Cost Management are
-reached with the VM's managed identity. Azure OpenAI takes an API key and ACS
+reached with the VM's managed identity. Microsoft Foundry takes an API key and ACS
 a connection string, both read from Key Vault at boot; the footer says so.
 
 Run:  python make_diagram.py
@@ -145,7 +145,7 @@ NODES = {
     "cost":    (RIGHT_X, ROW["r2"], RIGHT_W, "blue", "chart",
                 "Cost Management", "read-only, Cost Management Reader"),
     "bedrock": (RIGHT_X, ROW["r3"], RIGHT_W, "blue", "sparkles",
-                "Azure OpenAI", azure_models()),
+                "Microsoft Foundry", azure_models()),
     "ses":     (RIGHT_X, ROW["r4"], RIGHT_W, "blue", "mail",
                 "ACS Email", "Azure Communication Services"),
 }
@@ -223,7 +223,7 @@ EDGES = {
     "e_cost":    (_from_box("cost"), "blue", "az costmanagement",
                   BOX[0] + BOX[2] + 14, ROW["r2"] - 14, "start"),
     # From LiteLLM itself, not the boundary: it is the one process that
-    # calls Azure OpenAI, and it sits on that row.
+    # calls Microsoft Foundry, and it sits on that row.
     "e_bedrock": (_h("litellm", "bedrock"), "blue", "chat completions",
                   BOX[0] + BOX[2] + 14, ROW["r3"] - 14, "start"),
     # Solid: 01-core always creates ACS. custom_data.sh only installs
@@ -235,7 +235,7 @@ EDGES = {
 FONT = "-apple-system, BlinkMacSystemFont, Segoe UI, Helvetica, Arial, sans-serif"
 
 ALT = ("An RDP client reaches an LXQt desktop on one Azure VM, where the "
-       "OpenClaw gateway calls a loopback LiteLLM proxy that calls Azure OpenAI "
+       "OpenClaw gateway calls a loopback LiteLLM proxy that calls Microsoft Foundry "
        "and publishes pages to a loopback Apache. With the VM's managed "
        "identity, custom_data.sh reads Key Vault at first boot and the agent "
        "reads Cost Management; email goes through Azure Communication Services")
@@ -245,7 +245,7 @@ ALT = ("An RDP client reaches an LXQt desktop on one Azure VM, where the "
 # false thing on the diagram.
 FOOTER = ("Key Vault and Cost Management calls use the VM's managed identity — "
           "no Azure credentials for them on disk.",
-          "Azure OpenAI and ACS use an API key and a connection string, read from "
+          "Microsoft Foundry and ACS use an API key and a connection string, read from "
           "Key Vault at boot into /opt/openclaw.")
 
 

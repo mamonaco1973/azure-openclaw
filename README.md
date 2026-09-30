@@ -1,61 +1,28 @@
-# AI Agent Workstation on Azure with OpenClaw, LiteLLM, and Azure OpenAI
+# AI Agent Workstation on Azure with OpenClaw, LiteLLM, and Microsoft Foundry
 
-This project delivers a fully automated **AI agent workstation** on Azure, built
-using **Terraform**, **Packer**, and **OpenClaw** — an agentic coding and task
-automation platform backed by **Azure OpenAI** models via a **LiteLLM proxy**.
+This project delivers a fully automated **AI agent workstation** on Azure, built using **Terraform**, **Packer**, and **OpenClaw** — an agentic coding and task automation platform backed by **Microsoft Foundry** models via a **LiteLLM proxy**.
 
-It provisions an **Ubuntu 24.04 Azure VM** with a full **LXQt desktop
-environment** accessible over **RDP**, pre-loaded with developer tooling, cloud
-CLIs, and a running OpenClaw gateway — ready to accept work from the moment
-you connect.
+It provisions an **Ubuntu 24.04 Azure VM** with a full **LXQt desktop environment** accessible over **RDP**, pre-loaded with developer tooling, cloud CLIs, and a running OpenClaw gateway — ready to accept work from the moment you connect.
 
-Users RDP into the desktop and interact with OpenClaw through its web interface
-at `http://localhost:18789`. The agent has full access to the local filesystem,
-terminal, browser, and Azure services via the VM managed identity — no
-Azure credentials to manage, no keys to rotate.
+Users RDP into the desktop and interact with OpenClaw through its web interface at `http://localhost:18789`. The agent has full access to the local filesystem, terminal, browser, and Azure services via the VM managed identity — no Azure credentials to manage, no keys to rotate.
 
 ![openclaw](openclaw.png)
 
-OpenClaw is backed by the **Azure OpenAI** models listed in `azure-config.sh`
-— by default **GPT-4.1** (primary), **GPT-4.1 Nano**, **GPT-6 Sol** and
-**GPT-5.4 Mini** — all routed through a locally running **LiteLLM proxy** and
-selectable at runtime without configuration changes.
+OpenClaw is backed by the **Microsoft Foundry** models (formerly Azure OpenAI — Microsoft renamed the service at Ignite 2025) listed in `azure-config.sh` — by default **GPT-4.1** (primary), **GPT-4.1 Nano**, **GPT-6 Sol** and **GPT-5.4 Mini** — all routed through a locally running **LiteLLM proxy** and selectable at runtime without configuration changes.
 
-Outbound **email** is configured automatically at boot using **Azure
-Communication Services** credentials retrieved from Key Vault, giving the agent
-the ability to send reports and notifications (plain text or HTML) without any
-manual setup.
+Outbound **email** is configured automatically at boot using **Azure Communication Services** credentials retrieved from Key Vault, giving the agent the ability to send reports and notifications (plain text or HTML) without any manual setup.
 
 ---
 
 ## Key Capabilities Demonstrated
 
-1. **Autonomous AI Agent** — OpenClaw operates as a fully autonomous coding
-   and task agent. It can write and execute code, browse the web, manipulate
-   files, call Azure APIs, and send email — all driven by natural language
-   instructions.
-2. **Azure OpenAI Model Integration** — Every model in `azure-config.sh` (four
-   by default) is available via LiteLLM proxy running on loopback. Model selection requires
-   no code changes — switch at any time in the OpenClaw UI.
-3. **Fully Automated Provisioning** — A single `apply.sh` command provisions
-   the VNet, Key Vault, Azure OpenAI deployments, builds the managed image with
-   Packer, and deploys the VM with Terraform.
-4. **Managed Identity, Not Stored Credentials** — The VM reaches Key Vault and
-   Cost Management through its system-assigned managed identity, so no Azure
-   credentials live on the VM. The two service secrets that identity can't
-   replace — the Azure OpenAI API key and the ACS connection string — are
-   read from Key Vault at boot and written under `/opt/openclaw`; none are
-   stored in code.
-5. **Pre-Configured Desktop Environment** — LXQt desktop with Google Chrome,
-   Visual Studio Code, OnlyOffice, a file manager, and terminal — all pinned
-   to the desktop and ready on first login.
-6. **Integrated Email via ACS** — An `acs-mail` wrapper is configured at boot
-   using Azure Communication Services credentials from Key Vault. The agent can
-   send plain text or HTML email with a single command (no attachments).
-7. **Infrastructure as Code** — Terraform manages all Azure resources across
-   three phases (core networking + AI + email, image build, VM host) in a fully
-   repeatable, auditable way. Packer builds the managed image from a clean
-   Ubuntu 24.04 base with no dependencies on a pre-built image.
+1. **Autonomous AI Agent** — OpenClaw operates as a fully autonomous coding and task agent. It can write and execute code, browse the web, manipulate files, call Azure APIs, and send email — all driven by natural language instructions.
+2. **Microsoft Foundry Model Integration** — Every model in `azure-config.sh` (four by default) is available via LiteLLM proxy running on loopback. Model selection requires no code changes — switch at any time in the OpenClaw UI.
+3. **Fully Automated Provisioning** — A single `apply.sh` command provisions the VNet, Key Vault, Microsoft Foundry deployments, builds the managed image with Packer, and deploys the VM with Terraform.
+4. **Managed Identity, Not Stored Credentials** — The VM reaches Key Vault and Cost Management through its system-assigned managed identity, so no Azure credentials live on the VM. The two service secrets that identity can't replace — the Microsoft Foundry API key and the ACS connection string — are read from Key Vault at boot and written under `/opt/openclaw`; none are stored in code.
+5. **Pre-Configured Desktop Environment** — LXQt desktop with Google Chrome, Visual Studio Code, OnlyOffice, a file manager, and terminal — all pinned to the desktop and ready on first login.
+6. **Integrated Email via ACS** — An `acs-mail` wrapper is configured at boot using Azure Communication Services credentials from Key Vault. The agent can send plain text or HTML email with a single command (no attachments).
+7. **Infrastructure as Code** — Terraform manages all Azure resources across three phases (core networking + AI + email, image build, VM host) in a fully repeatable, auditable way. Packer builds the managed image from a clean Ubuntu 24.04 base with no dependencies on a pre-built image.
 
 ---
 
@@ -63,33 +30,14 @@ manual setup.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="architecture-dark.svg">
-  <img alt="An RDP client reaches an LXQt desktop on one Azure VM, where the OpenClaw gateway calls a loopback LiteLLM proxy that calls Azure OpenAI and publishes pages to a loopback Apache. With the VM's managed identity, custom_data.sh reads Key Vault at first boot and the agent reads Cost Management; email goes through Azure Communication Services" src="architecture-light.svg">
+  <img alt="An RDP client reaches an LXQt desktop on one Azure VM, where the OpenClaw gateway calls a loopback LiteLLM proxy that calls Microsoft Foundry and publishes pages to a loopback Apache. With the VM's managed identity, custom_data.sh reads Key Vault at first boot and the agent reads Cost Management; email goes through Azure Communication Services" src="architecture-light.svg">
 </picture>
 
-The diagram is generated: edit `make_diagram.py` and run
-`python make_diagram.py`, which rewrites `architecture-{light,dark}.svg`. The
-Azure OpenAI model list is read from `azure-config.sh`.
+The diagram is generated: edit `make_diagram.py` and run `python make_diagram.py`, which rewrites `architecture-{light,dark}.svg`. The Microsoft Foundry model list is read from `azure-config.sh`.
 
-The deployment spans three Terraform phases backed by a Packer managed image
-build. **01-core** establishes the network foundation — a VNet with a VM subnet
-and NAT gateway for egress — and creates the Azure Key Vault, the Azure OpenAI
-account with one deployment per model in `azure-config.sh`, and the Azure Communication Services email
-resource. Secrets (OpenAI config, email connection string) are stored in Key
-Vault immediately after creation. **02-packer** builds the `openclaw_image` from
-a clean Ubuntu 24.04 base, installing the full LXQt desktop, developer tooling,
-and the OpenClaw and LiteLLM services. **03-openclaw** deploys the VM from that
-image, attaches a system-assigned managed identity, assigns RBAC roles for Key
-Vault and Cost Management access, and runs `custom_data.sh` at first boot to
-wire everything together.
+The deployment spans three Terraform phases backed by a Packer managed image build. **01-core** establishes the network foundation — a VNet with a VM subnet and NAT gateway for egress — and creates the Azure Key Vault, the Microsoft Foundry account with one deployment per model in `azure-config.sh`, and the Azure Communication Services email resource. Secrets (OpenAI config, email connection string) are stored in Key Vault immediately after creation. **02-packer** builds the `openclaw_image` from a clean Ubuntu 24.04 base, installing the full LXQt desktop, developer tooling, and the OpenClaw and LiteLLM services. **03-openclaw** deploys the VM from that image, attaches a system-assigned managed identity, assigns RBAC roles for Key Vault and Cost Management access, and runs `custom_data.sh` at first boot to wire everything together.
 
-At runtime, the user connects via RDP to the LXQt desktop and opens OpenClaw
-in Chrome. Prompts flow from the OpenClaw gateway to the LiteLLM proxy running
-on loopback, which routes model requests to Azure OpenAI using the API key
-retrieved from Key Vault at boot. The managed identity handles Key Vault and
-Cost Management, so no Azure credentials touch the filesystem; the OpenAI API
-key and the ACS connection string do, under `/opt/openclaw`. Outbound email
-routes through Azure Communication Services using the connection string that
-`custom_data.sh` pulls from Key Vault on first boot.
+At runtime, the user connects via RDP to the LXQt desktop and opens OpenClaw in Chrome. Prompts flow from the OpenClaw gateway to the LiteLLM proxy running on loopback, which routes model requests to Microsoft Foundry using the API key retrieved from Key Vault at boot. The managed identity handles Key Vault and Cost Management, so no Azure credentials touch the filesystem; the OpenAI API key and the ACS connection string do, under `/opt/openclaw`. Outbound email routes through Azure Communication Services using the connection string that `custom_data.sh` pulls from Key Vault on first boot.
 
 ---
 
@@ -131,26 +79,16 @@ export ARM_SUBSCRIPTION_ID="<your-subscription-id>"
 export ARM_TENANT_ID="<your-tenant-id>"
 ```
 
-> **Azure OpenAI Access:** Azure OpenAI (`AIServices` kind) is available
+> **Foundry Access:** Microsoft Foundry (`AIServices` kind) is available
 > to most Azure subscriptions without a separate access request. Ensure the
 > `Microsoft.CognitiveServices` provider is registered in your subscription —
 > `check_env.sh` handles this automatically.
 
 ### Choosing Models
 
-The models are defined in one place, `azure-config.sh`. Everything else --
-the Azure OpenAI deployments `01-core` creates, the LiteLLM config, the
-OpenClaw model picker, and the pre-flight check -- is generated from it.
+The models are defined in one place, `azure-config.sh`. Everything else -- the Microsoft Foundry deployments `01-core` creates, the LiteLLM config, the OpenClaw model picker, and the pre-flight check -- is generated from it.
 
-Unlike Bedrock or Vertex, an Azure model must be **deployed** before it can be
-called, and deploying can fail even for a model the catalog lists: wrong
-version, SKU not offered in the region, retired, or no quota for your
-subscription. `probe_azure.py` reads the regional catalog and your quota and
-lists every chat model on offer -- OpenAI, DeepSeek, Meta, Mistral, xAI,
-Cohere, Microsoft, Anthropic and more -- with each version's retirement date.
-Once `01-core` exists it also times every deployment, and `--deploy` proves
-models that are not deployed by creating a temporary deployment for each,
-calling it once, and deleting it (10-30 seconds per model):
+Unlike Bedrock or Vertex, an Azure model must be **deployed** before it can be called, and deploying can fail even for a model the catalog lists: wrong version, SKU not offered in the region, retired, or no quota for your subscription. `probe_azure.py` reads the regional catalog and your quota and lists every chat model on offer -- OpenAI, DeepSeek, Meta, Mistral, xAI, Cohere, Microsoft, Anthropic and more -- with each version's retirement date. Once `01-core` exists it also times every deployment, and `--deploy` proves models that are not deployed by creating a temporary deployment for each, calling it once, and deleting it (10-30 seconds per model):
 
 ```bash
 ./probe_azure.py                              # everything this subscription offers
@@ -159,12 +97,9 @@ calling it once, and deleting it (10-30 seconds per model):
 ./probe_azure.py --check gpt-4.1:2025-04-14   # verify one, exit code only
 ```
 
-Claude models are listed as `GATED`: Azure will not deploy them without your
-organization details (industry, organization name, country code).
+Claude models are listed as `GATED`: Azure will not deploy them without your organization details (industry, organization name, country code).
 
-Put the ones you want in `azure-config.sh` as
-`alias|model|version|capacity|display[|format]`. The format is the provider
-the probe prints, and defaults to `OpenAI`:
+Put the ones you want in `azure-config.sh` as `alias|model|version|capacity|display[|format]`. The format is the provider the probe prints, and defaults to `OpenAI`:
 
 ```bash
 AZURE_MODELS=(
@@ -178,19 +113,15 @@ AZURE_MODELS=(
 AZURE_PRIMARY="gpt-4.1"
 ```
 
-The alias becomes the deployment name and the id OpenClaw stores, so keep it
-stable when bumping a version. Capacity is quota in thousands of tokens per
-minute. `check_env.sh` runs `probe_azure.py --check` on every entry before
-anything is built. OpenAI models are served through LiteLLM's `azure/`
-provider; every other format through its `openai/` provider on the account's
-Foundry `/openai/v1` endpoint. Claude cannot be used (see above).
+The alias becomes the deployment name and the id OpenClaw stores, so keep it stable when bumping a version. Capacity is quota in thousands of tokens per minute. `check_env.sh` runs `probe_azure.py --check` on every entry before anything is built. OpenAI models are served through LiteLLM's `azure/` provider; every other format through its `openai/` provider on the account's Foundry `/openai/v1` endpoint. Claude cannot be used (see above).
 
 > **Note:** `gpt-4.1` and `gpt-4.1-nano` are *Legacy* in the Azure catalog and
-> retire 2027-04-14. The probe flags this. `gpt-6-sol` and `gpt-5.4-mini` are
-> in the default list but not yet verified to drive OpenClaw tool calls;
-> verify tool calling in the UI before changing the primary. DeepSeek is left
-> out of the defaults: its quota of 20K tokens per minute is too small for a
-> single agent turn.
+> retire 2027-04-14. The probe flags this. `gpt-6-sol` drives OpenClaw tool
+> calls correctly — verified by having it write, publish and self-check a game
+> in one turn. `gpt-5.4-mini` is in the default list but has not been put
+> through the same test; verify tool calling in the UI before making it the
+> primary. DeepSeek is left out of the defaults: its quota of 20K tokens per
+> minute is too small for a single agent turn.
 
 ---
 
@@ -205,8 +136,7 @@ cd azure-openclaw
 
 ## Build the Code
 
-Run [check_env.sh](check_env.sh) to validate your environment, then run
-[apply.sh](apply.sh) to provision all infrastructure and build the managed image.
+Run [check_env.sh](check_env.sh) to validate your environment, then run [apply.sh](apply.sh) to provision all infrastructure and build the managed image.
 
 ```bash
 ~/azure-openclaw$ ./apply.sh
@@ -229,17 +159,12 @@ Initializing the backend...
 
 `apply.sh` performs the following steps in order:
 
-1. Runs `check_env.sh` to validate required CLI tools, ARM_* environment
-   variables, Azure login, and that every model in `azure-config.sh` can be
-   deployed
-2. Deploys `01-core` — VNet, Key Vault, Azure OpenAI (one deployment per model
-   in `azure-config.sh`), Azure Communication Services email
+1. Runs `check_env.sh` to validate required CLI tools, ARM_* environment variables, Azure login, and that every model in `azure-config.sh` can be deployed
+2. Deploys `01-core` — VNet, Key Vault, Microsoft Foundry (one deployment per model in `azure-config.sh`), Azure Communication Services email
 3. Captures the Key Vault name from Terraform outputs
-4. Runs `packer build` against `02-packer/openclaw.pkr.hcl` to produce
-   `openclaw_image_<timestamp>`
+4. Runs `packer build` against `02-packer/openclaw.pkr.hcl` to produce `openclaw_image_<timestamp>`
 5. Discovers the latest built image name via `az image list`
-6. Deploys `03-openclaw` — Azure VM, managed identity, RBAC assignments,
-   Key Vault password secrets
+6. Deploys `03-openclaw` — Azure VM, managed identity, RBAC assignments, Key Vault password secrets
 7. Runs `validate.sh` and prints the RDP connection details
 
 To tear down all resources:
@@ -260,63 +185,47 @@ When the deployment completes, the following resources are created:
 - **Networking (01-core):**
   - Resource groups `openclaw-core-rg` and `openclaw-project-rg`
   - VNet `openclaw-vnet` with CIDR `10.0.0.0/23`
-  - Subnet `vm-subnet` (10.0.0.0/25) with NSG `openclaw-nsg` allowing RDP
-    (3389) and SSH (22) inbound from anywhere
+  - Subnet `vm-subnet` (10.0.0.0/25) with NSG `openclaw-nsg` allowing RDP (3389) and SSH (22) inbound from anywhere
   - NAT gateway for stable outbound internet access
 
 - **Key Vault (01-core):**
   - Azure Key Vault `openclaw-vault-<suffix>` with RBAC authorization
   - Secrets: `openclaw-openai-config`, `openclaw-email-config`
-  - Secrets `openclaw-credentials` (the `openclaw` desktop user) and
-    `ubuntu-credentials` (the VM's `ubuntu` admin user) added by
-    `03-openclaw` at deploy time
+  - Secrets `openclaw-credentials` (the `openclaw` desktop user) and `ubuntu-credentials` (the VM's `ubuntu` admin user) added by `03-openclaw` at deploy time
 
-- **Azure OpenAI (01-core):**
-  - Azure OpenAI account (`AIServices` kind) with one `GlobalStandard`
-    deployment per model in `azure-config.sh`; by default:
+- **Microsoft Foundry (01-core):**
+  - Microsoft Foundry account (`AIServices` kind) with one `GlobalStandard` deployment per model in `azure-config.sh`; by default:
 
     | Deployment | Model | Purpose |
     |---|---|---|
     | `gpt-4.1` | GPT-4.1 2025-04-14 | Primary agentic model |
     | `gpt-4.1-nano` | GPT-4.1 Nano 2025-04-14 | Fast / cost-efficient model |
-    | `gpt-6-sol` | GPT-6 Sol 2026-09-22 | Newest model; tool calls not yet verified |
+    | `gpt-6-sol` | GPT-6 Sol 2026-09-22 | Newest model; tool calls verified |
     | `gpt-5.4-mini` | GPT-5.4 Mini 2026-03-17 | Current GA small model; tool calls not yet verified |
 
 - **Email (01-core):**
   - Azure Communication Services resource
-  - Email Communication Service with Azure Managed Domain (auto-verified,
-    no DNS setup required)
+  - Email Communication Service with Azure Managed Domain (auto-verified, no DNS setup required)
   - Connection string stored in Key Vault secret `openclaw-email-config`
 
 - **Managed Image (02-packer):**
   - Ubuntu 24.04 base image built on `Standard_D4s_v3` builder VM
-  - **LXQt** lightweight desktop environment with **XRDP** for remote access
-    at 16-bit color depth
-  - **Xvfb** virtual framebuffer on `:99` for headless browser operation
-    (used by the OpenClaw browser tool when no RDP session is active)
-  - **Google Chrome**, **Visual Studio Code**, **OnlyOffice Desktop Editors**,
-    **PCManFM-Qt** file manager, **QTerminal**
-  - **AWS CLI v2**, **Azure CLI**, **Google Cloud SDK**, **Terraform**,
-    **Packer**, **Git**
+  - **LXQt** lightweight desktop environment with **XRDP** for remote access at 16-bit color depth
+  - **Xvfb** virtual framebuffer on `:99` for headless browser operation (used by the OpenClaw browser tool when no RDP session is active)
+  - **Google Chrome**, **Visual Studio Code**, **OnlyOffice Desktop Editors**, **PCManFM-Qt** file manager, **QTerminal**
+  - **AWS CLI v2**, **Azure CLI**, **Google Cloud SDK**, **Terraform**, **Packer**, **Git**
   - **Node.js 22** and **OpenClaw** installed globally
   - **LiteLLM proxy** in a Python venv at `/opt/litellm-venv`
-  - **Python tools** — python-docx, python-pptx, openpyxl, pandas, numpy,
-    matplotlib, pymupdf, reportlab, beautifulsoup4, httpx, rich,
-    azure-communication-email, and more
-  - **System utilities** — ffmpeg, imagemagick, pandoc, poppler-utils,
-    ghostscript, sqlite3, jq, xmlstarlet, csvkit, msmtp
-  - **OpenClaw config pre-stamped** — gateway metadata written at build time
-    so no cold-start config generation on first launch
-  - **Exec allowlist pre-configured** — both `*` and `main` agent entries
-    set to allow all paths (`/**`) so the agent can run commands immediately
+  - **Python tools** — python-docx, python-pptx, openpyxl, pandas, numpy, matplotlib, pymupdf, reportlab, beautifulsoup4, httpx, rich, azure-communication-email, and more
+  - **System utilities** — ffmpeg, imagemagick, pandoc, poppler-utils, ghostscript, sqlite3, jq, xmlstarlet, csvkit, msmtp
+  - **OpenClaw config pre-stamped** — gateway metadata written at build time so no cold-start config generation on first launch
+  - **Exec allowlist pre-configured** — both `*` and `main` agent entries set to allow all paths (`/**`) so the agent can run commands immediately
   - Desktop shortcuts pinned for all applications
 
 - **Azure VM (03-openclaw):**
-  - `Standard_D4s_v3` instance launched from `openclaw_image` with a 128 GB
-    Premium SSD OS disk
+  - `Standard_D4s_v3` instance launched from `openclaw_image` with a 128 GB Premium SSD OS disk
   - Public IP assigned; ports 3389 (RDP) and 22 (SSH) open from anywhere
-  - Admin user `ubuntu` with a generated password (SSH password
-    authentication enabled), stored in Key Vault as `ubuntu-credentials`
+  - Admin user `ubuntu` with a generated password (SSH password authentication enabled), stored in Key Vault as `ubuntu-credentials`
   - **System-assigned managed identity** with the following RBAC roles:
 
     | Role | Scope | Purpose |
@@ -326,29 +235,22 @@ When the deployment completes, the following resources are created:
 
   - **`custom_data.sh`** runs at first boot:
     1. Logs in with managed identity (`az login --identity`)
-    2. Reads `openclaw-credentials` from Key Vault and sets the `openclaw`
-       Linux user password via `chpasswd`
-    3. Reads `openclaw-openai-config` from Key Vault and writes
-       `/opt/openclaw/litellm-config.yaml` with the real Azure OpenAI
-       endpoint, API key, and deployment names
-    4. Reads `openclaw-email-config` from Key Vault and installs the
-       `acs-mail` wrapper with the ACS connection string
+    2. Reads `openclaw-credentials` from Key Vault and sets the `openclaw` Linux user password via `chpasswd`
+    3. Reads `openclaw-openai-config` from Key Vault and writes `/opt/openclaw/litellm-config.yaml` with the real Microsoft Foundry endpoint, API key, and deployment names
+    4. Reads `openclaw-email-config` from Key Vault and installs the `acs-mail` wrapper with the ACS connection string
     5. Starts `litellm.service` and `openclaw-gateway.service`
-    6. Registers every model from `azure-config.sh` with OpenClaw, sets
-       `AZURE_PRIMARY` as the primary, and restarts the gateway
+    6. Registers every model from `azure-config.sh` with OpenClaw, sets `AZURE_PRIMARY` as the primary, and restarts the gateway
 
 - **Systemd Services:**
   - `xvfb.service` — Xvfb virtual framebuffer, starts before gateway
   - `litellm.service` — LiteLLM proxy, reads `/opt/openclaw/litellm-config.yaml`
-  - `openclaw-gateway.service` — OpenClaw gateway on loopback port 18789,
-    `--auth none` so no device pairing is required
+  - `openclaw-gateway.service` — OpenClaw gateway on loopback port 18789, `--auth none` so no device pairing is required
 
 ---
 
 ## Connecting to the Instance
 
-After `apply.sh` completes, the VM's public IP and FQDN are printed by
-`validate.sh`.
+After `apply.sh` completes, the VM's public IP and FQDN are printed by `validate.sh`.
 
 ### Direct RDP
 
@@ -377,20 +279,17 @@ az keyvault secret show \
 
 ## Using OpenClaw
 
-Once connected via RDP, the LXQt desktop loads automatically. Double-click
-**Google Chrome** on the desktop — it opens to `http://localhost:18789`, the
-OpenClaw web interface.
+Once connected via RDP, the LXQt desktop loads automatically. Double-click **Google Chrome** on the desktop — it opens to `http://localhost:18789`, the OpenClaw web interface.
 
 ### Selecting a Model
 
-Click the model selector in the OpenClaw toolbar. The models from
-`azure-config.sh` are available; by default:
+Click the model selector in the OpenClaw toolbar. The models from `azure-config.sh` are available; by default:
 
 | Model | Best for |
 |---|---|
 | **GPT-4.1** (primary) | Complex reasoning, multi-step agentic tasks, analysis |
 | **GPT-4.1 Nano** | Fast responses, simple tasks, iteration |
-| **GPT-6 Sol** | Newest model; verify tool calling before relying on it |
+| **GPT-6 Sol** | Newest model; tool calling verified, drives the agent fine |
 | **GPT-5.4 Mini** | Current GA small model; verify tool calling before relying on it |
 
 ### Agent Capabilities
@@ -406,62 +305,69 @@ OpenClaw's `main` agent has full access to:
 | **Azure APIs** | Full access via managed identity — no credentials needed |
 | **Web** | Publish to `/var/www/html`, served by Apache at `http://localhost/` |
 
-The agent's workspace is at `~/.openclaw/workspace` (also accessible as
-`~/Openclaw/workspace` via symlink). A `SYSTEM.md` file in the workspace
-describes all available tools, commands, and capabilities so the agent knows
-what it can do without being told.
+The agent's workspace is at `~/.openclaw/workspace` (also accessible as `~/Openclaw/workspace` via symlink). A `SYSTEM.md` file in the workspace describes all available tools, commands, and capabilities so the agent knows what it can do without being told.
 
 ## Example Prompts
 
-Apache serves `/var/www/html` at `http://localhost/`, and the directory is
-world-writable, so the agent can publish a page with the exec tool and open it
-in Chrome without leaving the desktop. Nothing is exposed outside the instance.
+Apache serves `/var/www/html` at `http://localhost/`, and the directory is world-writable, so the agent can publish a page with the exec tool and open it in Chrome without leaving the desktop. Nothing is exposed outside the instance.
 
-**Be specific.** A bare *"build breakout"* produces something threadbare no
-matter which model is driving. The prompts below spell out the tool, the path,
-the permission, and every feature — each line kills a specific failure mode:
+**Be specific.** A bare *"build breakout"* produces something threadbare no matter which model is driving. The prompts below spell out the tool, the path, the permission, and every feature — each line kills a specific failure mode:
 
-- **Naming `/var/www/html` and its permissions** stops it asking you to create
-  the file.
-- **"Do not print the code in chat"** pushes it toward an actual tool call.
-  Left out, some models narrate `[exec command="..."]` as text and nothing runs.
-- **Enumerating features** does the design work. Left open, you get a paddle
-  and a ball and no lives, win state, or restart.
-- **The closing `curl` check** makes the agent prove the page really serves
-  rather than claiming success.
+- **Naming `/var/www/html` and its permissions** stops it asking you to create the file.
+- **"Do not print the code in chat"** pushes it toward an actual tool call. Left out, some models narrate `[exec command="..."]` as text and nothing runs.
+- **Enumerating features** does the design work. Left open, you get a paddle and a ball and no lives, win state, or restart.
+- **The closing `curl` check** makes the agent prove the page really serves rather than claiming success.
+- **Pinning `event.key`** is the one that is not obvious. See below.
+
+**The XRDP keymap lies about `event.code`.** On this desktop Chrome reports the left arrow as `key="ArrowLeft"` (correct) but `code="Convert"` (a Japanese *henkan* key). `event.code` is the modern, layout-independent choice, so a good model reaches for it by default — and the result is a game that draws perfectly and ignores every keypress, with nothing in the console to explain why. Both prompts below therefore forbid `event.code` outright and make the agent prove it with `grep -c`. Mouse-driven controls are unaffected, which is why this can hide for a long time.
+
+To see it for yourself:
+
+```bash
+cat > /var/www/html/keytest.html <<'EOF'
+<!doctype html><meta charset="utf-8"><title>key test</title>
+<body style="font:20px monospace;background:#111;color:#0f0;padding:24px">
+<div id="o">press the arrow keys</div>
+<script>
+addEventListener('keydown', e => {
+  o.textContent = 'key=' + e.key + '  code=' + e.code + '  keyCode=' + e.keyCode;
+  e.preventDefault();
+});
+</script>
+EOF
+```
 
 ### Breakout
 
 ```
 Build a complete Breakout game as a single self-contained HTML file.
 
-You have full write permission to /var/www/html - it is world-writable and
-served by Apache at http://localhost/. Use the exec tool to write the file
-directly. Do not ask me for permission and do not print the code in chat.
+You have full write permission to /var/www/html - it is world-writable and served by Apache at http://localhost/. Use the exec tool to write the file directly. Do not ask me for permission and do not print the code in chat.
 
 Write it to: /var/www/html/breakout.html
 
 Requirements:
-- One file only. Inline CSS and inline JavaScript. No external libraries,
-  no CDN links, no separate .js or .css files.
+- One file only. Inline CSS and inline JavaScript. No external libraries, no CDN links, no separate .js or .css files.
 - 800x600 <canvas>, centred on a dark page background.
-- Paddle at the bottom, controlled by BOTH the mouse and the left/right
-  arrow keys. Clamp it to the canvas edges.
-- A ball that bounces off the walls, the paddle, and the bricks. Angle the
-  bounce based on where the ball hits the paddle.
+- Paddle at the bottom, controlled by BOTH the mouse and the left/right arrow keys. Clamp it to the canvas edges.
+- A ball that bounces off the walls, the paddle, and the bricks. Angle the bounce based on where the ball hits the paddle.
 - 5 rows x 10 columns of bricks, a different colour per row.
 - Score (+10 per brick) and 3 lives, both drawn on the canvas.
 - Losing the ball costs a life and resets the ball on the paddle.
-- "YOU WIN" when every brick is cleared, "GAME OVER" at zero lives, and in
-  both cases press SPACE to restart.
+- "YOU WIN" when every brick is cleared, "GAME OVER" at zero lives, and in both cases press SPACE to restart.
 - Use requestAnimationFrame for the game loop.
+
+CRITICAL - keyboard handling. This machine has a broken keyboard map: event.code returns wrong values (pressing the left arrow reports code="Convert"). Any game that switches on event.code will ignore every keypress.
+- Switch on event.key ONLY. Use "ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown" and " " for space. Do not read event.code anywhere in the file.
+- Attach the keydown listener to window, not to the canvas, and do not require a click or focus first.
+- Call event.preventDefault() for every key you handle.
 
 When the file is written, verify it with exec:
   ls -l /var/www/html/breakout.html
   curl -s -o /dev/null -w "%{http_code}" http://localhost/breakout.html
+  grep -c "event.code" /var/www/html/breakout.html
 
-Then tell me the URL to open. Do not stop until the file exists and the
-curl returns 200.
+Then tell me the URL to open. Do not stop until the file exists, the curl returns 200, and the grep returns 0.
 ```
 
 ### Tetris
@@ -469,52 +375,43 @@ curl returns 200.
 ```
 Build a complete Tetris game as a single self-contained HTML file.
 
-You have full write permission to /var/www/html - it is world-writable and
-served by Apache at http://localhost/. Use the exec tool to write the file
-directly. Do not ask me for permission and do not print the code in chat.
+You have full write permission to /var/www/html - it is world-writable and served by Apache at http://localhost/. Use the exec tool to write the file directly. Do not ask me for permission and do not print the code in chat.
 
 Write it to: /var/www/html/tetris.html
 
 Requirements:
-- One file only. Inline CSS and inline JavaScript. No external libraries,
-  no CDN links, no separate .js or .css files.
-- A 10-wide by 20-tall playfield drawn on a <canvas>, centred on a dark page
-  background, with a visible grid.
-- All 7 tetrominoes (I, O, T, S, Z, J, L) in the standard colours: cyan,
-  yellow, purple, green, red, blue, orange.
-- Controls: left/right arrows move, up arrow rotates clockwise, down arrow
-  soft-drops, SPACE hard-drops. Block any move or rotation that would leave
-  the playfield or overlap a locked block.
-- Pieces lock when they cannot fall further, then a new piece spawns at the
-  top from a random bag of the 7.
-- Clear full lines, shift everything above down, and score 100/300/500/800
-  for 1/2/3/4 lines at once.
-- Show score, level, and lines cleared beside the board, plus a "next piece"
-  preview. Level rises every 10 lines and the drop speed increases with it.
+- One file only. Inline CSS and inline JavaScript. No external libraries, no CDN links, no separate .js or .css files.
+- A 10-wide by 20-tall playfield drawn on a <canvas>, centred on a dark page background, with a visible grid.
+- All 7 tetrominoes (I, O, T, S, Z, J, L) in the standard colours: cyan, yellow, purple, green, red, blue, orange.
+- Controls: left/right arrows move, up arrow rotates clockwise, down arrow soft-drops, SPACE hard-drops. Block any move or rotation that would leave the playfield or overlap a locked block.
+- Pieces lock when they cannot fall further, then a new piece spawns at the top from a random bag of the 7.
+- Clear full lines, shift everything above down, and score 100/300/500/800 for 1/2/3/4 lines at once.
+- Show score, level, and lines cleared beside the board, plus a "next piece" preview. Level rises every 10 lines and the drop speed increases with it.
 - "GAME OVER" when a new piece cannot spawn, with SPACE to restart.
+
+CRITICAL - keyboard handling. This machine has a broken keyboard map: event.code returns wrong values (pressing the left arrow reports code="Convert"). Any game that switches on event.code will ignore every keypress.
+- Switch on event.key ONLY. Use "ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown" and " " for space. Do not read event.code anywhere in the file.
+- Attach the keydown listener to window, not to the canvas, and do not require a click or focus first.
+- Call event.preventDefault() for every key you handle.
 
 When the file is written, verify it with exec:
   ls -l /var/www/html/tetris.html
   curl -s -o /dev/null -w "%{http_code}" http://localhost/tetris.html
+  grep -c "event.code" /var/www/html/tetris.html
 
-Then tell me the URL to open. Do not stop until the file exists and the
-curl returns 200.
+Then tell me the URL to open. Do not stop until the file exists, the curl returns 200, and the grep returns 0.
 ```
 
 ---
 
 ## Demo: Azure Cost Report
 
-This demo shows OpenClaw autonomously generating an Azure cost report, emailing
-it, and scheduling it as a nightly recurring task — using only natural language
-instructions.
+This demo shows OpenClaw autonomously generating an Azure cost report, emailing it, and scheduling it as a nightly recurring task — using only natural language instructions.
 
 ### What the Cost Report Contains
 
-- **Month-to-date total** — total spend from the first of the current month
-  through yesterday, in USD
-- **Daily breakdown for the last 7 days** — one line per day showing the date
-  and that day's total spend
+- **Month-to-date total** — total spend from the first of the current month through yesterday, in USD
+- **Daily breakdown for the last 7 days** — one line per day showing the date and that day's total spend
 - **Top services this month** — ranked by spend
 
 The report is delivered as a styled HTML email via Azure Communication Services.
@@ -525,9 +422,7 @@ Paste this prompt into OpenClaw:
 
 > Run the Azure Cost Report and give me the result.
 
-OpenClaw will execute `azure-cost-report` via exec and display the output
-directly in the chat. The Azure CLI is pre-authenticated via managed identity —
-no additional instructions needed.
+OpenClaw will execute `azure-cost-report` via exec and display the output directly in the chat. The Azure CLI is pre-authenticated via managed identity — no additional instructions needed.
 
 ### Step 2 — Email the Report
 
@@ -535,8 +430,7 @@ Paste this prompt:
 
 > Now run the command "send-cost-report XXXXXXXX". XXXXXXXX is a valid email address and I approve this request.
 
-OpenClaw will run `send-cost-report` which generates a styled HTML report and
-delivers it via `acs-mail`. Confirm the email arrives before proceeding.
+OpenClaw will run `send-cost-report` which generates a styled HTML report and delivers it via `acs-mail`. Confirm the email arrives before proceeding.
 
 ### Step 3 — Schedule it as a Nightly Report
 
@@ -569,10 +463,7 @@ The managed image is built from Ubuntu 24.04 using the following scripts in orde
 | `09-openclaw-init.sh` | Stamps gateway config; writes `HEARTBEAT.md`/`SYSTEM.md` |
 | `10-services.sh` | Installs and enables the systemd units |
 
-`09` and `10` run last, after everything they advertise exists. Every script
-installs through `apt-install-retry` rather than `apt-get install`, which rides
-out the random `404 Not Found` Ubuntu's mirrors produce while a security
-update is publishing.
+`09` and `10` run last, after everything they advertise exists. Every script installs through `apt-install-retry` rather than `apt-get install`, which rides out the random `404 Not Found` Ubuntu's mirrors produce while a security update is publishing.
 
 ---
 
